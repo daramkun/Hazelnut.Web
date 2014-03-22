@@ -48,7 +48,7 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Dweb\Daramkun.Dweb.csproj">
+    <ProjectReference Include="..\Daramkun.Dweb\Daramkun.Dweb.csproj">
       <Project>{cad94f5c-609d-4d5d-809e-6a7533581ef7}</Project>
       <Name>Daramkun.Dweb</Name>
     </ProjectReference>
