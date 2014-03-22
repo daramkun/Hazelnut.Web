@@ -89,10 +89,35 @@ namespace Daramkun.Dweb
 					}
 
 					// Get real path of url
+					bool subDirectoried = false;
 					HttpUrl url = new HttpUrl ( header.QueryString );
-					
+					string filename;
+					if ( url.Path.Length > 2 )
+					{
+						foreach ( KeyValuePair<string, string> k in virtualSite.SubDirectory )
+						{
+							if ( url.Path [ 1 ] == k.Key )
+							{
+								filename = GetFilename ( k.Key, url );
+								subDirectoried = true;
+							}
+						}
+					}
+
+					if ( !subDirectoried )
+						filename = GetFilename ( virtualSite.RootDirectory, url );
 				}
 			}, null );
+		}
+
+		private string GetFilename ( string baseDirectory, HttpUrl url )
+		{
+			StringBuilder filename = new StringBuilder ();
+			filename.Append ( baseDirectory );
+			if ( filename [ filename.Length - 1 ] == '\\' )
+				filename.Remove ( filename.Length - 1, 1 );
+
+			return filename.ToString ();
 		}
 
 		private void SendData ( HttpResponseHeader header, Stream stream )
