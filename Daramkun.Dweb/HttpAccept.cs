@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Web;
 using Daramkun.Dweb.Exceptions;
 
 namespace Daramkun.Dweb
@@ -31,12 +32,12 @@ namespace Daramkun.Dweb
 			socket.BeginReceive ( new byte [ 0 ], 0, 0, SocketFlags.None, ( IAsyncResult ar ) =>
 			{
 				socket.EndReceive ( ar );
-				HttpRequestHeader header;
+				HttpRequestHeader header = new HttpRequestHeader ();
 
 				using ( NetworkStream networkStream = new NetworkStream ( socket, false ) )
 				{
 					try { header = new HttpRequestHeader ( networkStream ); }
-					catch { throw new InvalidRequestException (); }
+					catch { server.WriteLog ( "Invalid Request." ); ReceiveRequest (); return; }
 				}
 
 				server.WriteLog ( "V{0}, [{1}] {2}", header.HttpVersion, header.RequestMethod, header.QueryString );
@@ -64,6 +65,10 @@ namespace Daramkun.Dweb
 					int contentLength = int.Parse ( header.Fields [ HttpRequestHeaderField.ContentLength ] as string );
 					if ( contentLength > virtualSite.MaximumPostSize )
 					{
+						byte [] temp = new byte [ 1024 ];
+						int length = 0;
+						while ( length == contentLength )
+							length += socket.Receive ( temp, contentLength - length, SocketFlags.None );
 						HttpResponseHeader responseHeader = new HttpResponseHeader ( HttpStatusCode.RequestEntityTooLarge );
 						SendData ( responseHeader, null );
 						ReceiveRequest ();
@@ -72,7 +77,36 @@ namespace Daramkun.Dweb
 					if ( contentLength > 0 )
 					{
 						// POST data
-
+						if ( header.Fields [ HttpRequestHeaderField.ContentType ] as string == "application/x-www-form-urlencoded" )
+						{
+							// URL Encoded POST data
+							MemoryStream memoryStream = new MemoryStream ();
+							byte [] temp = new byte [ 1024 ];
+							int length = 0;
+							while ( length < contentLength )
+							{
+								int len = socket.Receive ( temp, 1024, SocketFlags.None );
+								length += len;
+								memoryStream.Write ( temp, 0, len );
+							}
+							string postString = HttpUtility.UrlDecode ( memoryStream.ToArray (), 0, ( int ) memoryStream.Length, Encoding.UTF8 );
+							string [] tt = postString.Split ( '&' );
+							tt = tt [ 1 ].Split ( '&' );
+							foreach ( string s in tt )
+							{
+								string [] temp2 = s.Split ( '=' );
+								header.PostData.Add ( temp2 [ 0 ], ( temp2.Length == 2 ) ? HttpUtility.UrlDecode ( temp2 [ 1 ] ) : null );
+							}
+						}
+						else
+						{
+							// Multipart POST data
+							ContentType contentType = new ContentType ( header.Fields [ HttpRequestHeaderField.ContentType ] as string );
+							using ( NetworkStream networkStream = new NetworkStream ( socket, false ) )
+							{
+								
+							}
+						}
 					}
 				}
 
@@ -104,8 +138,10 @@ namespace Daramkun.Dweb
 					string filename = null;
 					if ( url.Path.Length > 2 )
 					{
+						// Find sub directory
 						foreach ( KeyValuePair<string, string> k in virtualSite.SubDirectory )
 						{
+							// If found sub directory, apply sub directory
 							if ( url.Path [ 1 ] == k.Key )
 							{
 								filename = GetFilename ( k.Key, url, 2 );
@@ -114,10 +150,11 @@ namespace Daramkun.Dweb
 							}
 						}
 					}
-
+					// If can't found sub directory, apply root directory
 					if ( !subDirectoried )
 						filename = GetFilename ( virtualSite.RootDirectory, url, 1 );
 
+					// Cannot found file, apply index filename
 					if ( !File.Exists ( filename ) )
 					{
 						string temp = filename;
@@ -135,19 +172,22 @@ namespace Daramkun.Dweb
 					Stream responseStream = null;
 					ContentType fileContentType = null;
 					
+					// Find Content-Type
 					if ( server.Mimes.ContainsKey ( Path.GetExtension ( filename ) ) )
 						fileContentType = server.Mimes [ Path.GetExtension ( filename ) ];
-					else fileContentType = new ContentType ( "text/plain" );
+					else fileContentType = new ContentType ( "application/octet-stream" );
+					// Find Plugin for send data
 					bool isPluginProceed = false;
-
 					foreach ( IPlugin plugin in server.Plugins )
 					{
 						if ( isPluginProceed = plugin.Run ( header, fileContentType, filename, url, out responseHeader, out responseStream ) )
 							break;
 					}
+					// If Cannot found Plugin, Processing Original plugin
 					if ( !isPluginProceed )
 						server.OriginalPlugin.Run ( header, fileContentType, filename, url, out responseHeader, out responseStream );
 
+					// Send to client
 					SendData ( responseHeader, responseStream );
 				}
 			}, null );
@@ -185,6 +225,7 @@ namespace Daramkun.Dweb
 				{
 					socket.Send ( data, stream.Read ( data, 0, data.Length ), SocketFlags.None );
 				}
+				stream.Dispose ();
 			}
 		}
 

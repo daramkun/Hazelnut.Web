@@ -21,13 +21,11 @@ namespace Daramkun.Dweb
 			Path [ 0 ] = temp [ 0 ];
 			if ( temp.Length > 1 )
 			{
-				for ( int i = 1; i < Path.Length; ++i )
-					Path [ i ] = HttpUtility.UrlDecode ( Path [ i ] );
 				temp = temp [ 1 ].Split ( '&' );
 				foreach ( string s in temp )
 				{
 					string [] temp2 = s.Split ( '=' );
-					queryString.Add ( temp2 [ 0 ], ( temp2.Length == 2 ) ? temp2 [ 1 ] : null );
+					queryString.Add ( temp2 [ 0 ], ( temp2.Length == 2 ) ? HttpUtility.UrlDecode ( temp2 [ 1 ] ) : null );
 				}
 			}
 		}

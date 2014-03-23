@@ -101,9 +101,32 @@ namespace Daramkun.Dweb
 
 		public void AddDefaultMimes ()
 		{
-			ContentType webMime = new ContentType ( "text/html" );
-			mimes.Add ( ".htm", webMime );
-			mimes.Add ( ".html", webMime );
+			mimes.Add ( ".htm", new ContentType ( "text/html" ) );
+			mimes.Add ( ".html", new ContentType ( "text/html" ) );
+			mimes.Add ( ".css", new ContentType ( "text/css" ) );
+			mimes.Add ( ".js", new ContentType ( "text/javascript" ) );
+			
+			mimes.Add ( ".txt", new ContentType ( "text/plain" ) );
+			mimes.Add ( ".json", new ContentType ( "application/json" ) );
+			mimes.Add ( ".yaml", new ContentType ( "text/yaml" ) );
+			mimes.Add ( ".xml", new ContentType ( "text/xml" ) );
+			mimes.Add ( ".dtd", new ContentType ( "application/xml-dtd" ) );
+			mimes.Add ( ".xsl", new ContentType ( "application/xslt+xml" ) );
+			mimes.Add ( ".xslt", new ContentType ( "application/xslt+xml" ) );
+			mimes.Add ( ".xsd", new ContentType ( "application/xsd+xml" ) );
+			mimes.Add ( ".rss", new ContentType ( "application/rss+xml" ) );
+			mimes.Add ( ".pdf", new ContentType ( "application/pdf" ) );
+			mimes.Add ( ".md", new ContentType ( "text/x-markdown" ) );
+			mimes.Add ( ".xls", new ContentType ( "application/vnd.ms-excel" ) );
+			mimes.Add ( ".xlsx", new ContentType ( "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ) );
+			mimes.Add ( ".xltx", new ContentType ( "application/vnd.openxmlformats-officedocument.spreadsheetml.template" ) );
+			mimes.Add ( ".doc", new ContentType ( "application/msword" ) );
+			mimes.Add ( ".docx", new ContentType ( "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ) );
+			mimes.Add ( ".dotx", new ContentType ( "application/vnd.openxmlformats-officedocument.wordprocessingml.template" ) );
+			mimes.Add ( ".ppt", new ContentType ( "application/vnd.ms-powerpoint" ) );
+			mimes.Add ( ".pptx", new ContentType ( "application/vnd.openxmlformats-officedocument.presentationml.presentation" ) );
+			mimes.Add ( ".potx", new ContentType ( "application/vnd.openxmlformats-officedocument.presentationml.template" ) );
+			mimes.Add ( ".ppsx", new ContentType ( "application/vnd.openxmlformats-officedocument.presentationml.slideshow" ) );
 
 			mimes.Add ( ".jpg", new ContentType ( "image/jpeg" ) );
 			mimes.Add ( ".jpeg", new ContentType ( "image/jpeg" ) );
@@ -113,10 +136,19 @@ namespace Daramkun.Dweb
 			mimes.Add ( ".dib", new ContentType ( "image/bmp" ) );
 			mimes.Add ( ".tif", new ContentType ( "image/tiff" ) );
 			mimes.Add ( ".tiff", new ContentType ( "image/tiff" ) );
+			mimes.Add ( ".ai", new ContentType ( "application/postscript" ) );
+			mimes.Add ( ".svg", new ContentType ( "image/svg+xml" ) );
 
 			mimes.Add ( ".zip", new ContentType ( "application/x-zip-comressed" ) );
 			mimes.Add ( ".7z", new ContentType ( "application/x-7z-comressed" ) );
-			mimes.Add ( ".rar", new ContentType ( "application/octet-stream" ) );
+			mimes.Add ( ".rar", new ContentType ( "application/x-rar-compressed" ) );
+			mimes.Add ( ".lzh", new ContentType ( "application/x-lzh-archive" ) );
+			mimes.Add ( ".lzma", new ContentType ( "application/x-lzma-archive" ) );
+			mimes.Add ( ".tar", new ContentType ( "application/tar" ) );
+			mimes.Add ( ".bz", new ContentType ( "application/x-bzip" ) );
+			mimes.Add ( ".bz2", new ContentType ( "application/x-bzip2" ) );
+			mimes.Add ( ".gz", new ContentType ( "application/x-gzip" ) );
+			mimes.Add ( ".pkg", new ContentType ( "application/x-newton-compatible-pkg" ) );
 
 			mimes.Add ( ".mp3", new ContentType ( "audio/mpeg" ) );
 			mimes.Add ( ".wav", new ContentType ( "audio/wav" ) );
@@ -128,6 +160,9 @@ namespace Daramkun.Dweb
 			mimes.Add ( ".m4v", new ContentType ( "video/x-m4v" ) );
 			mimes.Add ( ".asf", new ContentType ( "video/x-ms-asf" ) );
 			mimes.Add ( ".wmv", new ContentType ( "video/x-ms-wmv" ) );
+			mimes.Add ( ".mov", new ContentType ( "video/quicktime" ) );
+			mimes.Add ( ".mkv", new ContentType ( "video/x-matroska" ) );
+			mimes.Add ( ".webm", new ContentType ( "video/webm" ) );
 		}
 
 		public void Dispose ()

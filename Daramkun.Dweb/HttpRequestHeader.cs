@@ -13,6 +13,7 @@ namespace Daramkun.Dweb
 		public string QueryString { get; set; }
 		public Version HttpVersion { get; set; }
 		public Dictionary<string, object> Fields { get; private set; }
+		public Dictionary<string, string> PostData { get; private set; }
 
 		public HttpRequestHeader ( Stream stream )
 			: this ()
@@ -27,6 +28,8 @@ namespace Daramkun.Dweb
 			// Read Header Fields
 			SkipToNextLine ( reader );
 			Fields = new Dictionary<string, object> ();
+
+			PostData = new Dictionary<string, string> ();
 
 			string key;
 			while ( ( key = ReadToColon ( reader ) ) != null )
