@@ -14,12 +14,12 @@ namespace Daramkun.Dweb
 		public long ContentLength
 		{
 			get { return ( long ) Fields [ "Content-Length" ]; }
-			set { if ( Fields.ContainsKey ( "Content-Length" ) ) Fields.Add ( "Content-Length", value ); else Fields [ "Content-Length" ] = value; }
+			set { if ( !Fields.ContainsKey ( "Content-Length" ) ) Fields.Add ( "Content-Length", value ); else Fields [ "Content-Length" ] = value; }
 		}
 		public ContentType ContentType
 		{
 			get { return Fields [ "Content-Type" ] as ContentType; }
-			set { if ( Fields.ContainsKey ( "Content-Type" ) ) Fields.Add ( "Content-Type", value ); else Fields [ "Content-Type" ] = value; }
+			set { if ( !Fields.ContainsKey ( "Content-Type" ) ) Fields.Add ( "Content-Type", value ); else Fields [ "Content-Type" ] = value; }
 		}
 
 		public Dictionary<string, object> Fields { get; private set; }

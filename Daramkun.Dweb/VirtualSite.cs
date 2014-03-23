@@ -17,6 +17,7 @@ namespace Daramkun.Dweb
 		public string Administrator { get; set; }
 		public bool IsRedirect { get; set; }
 		public string RootDirectory { get; set; }
+		public int MaximumPostSize { get; set; }
 		public Dictionary<string, string> SubDirectory { get { return subDir; } }
 		public Dictionary<Regex, string> RewriteRules { get { return rewRule; } }
 
@@ -25,6 +26,7 @@ namespace Daramkun.Dweb
 			ServerHost = serverHost;
 			IsRedirect = isRedirect;
 			RootDirectory = rootDir;
+			MaximumPostSize = 8388608;
 			subDir = new Dictionary<string, string> ();
 			rewRule = new Dictionary<Regex, string> ();
 		}

@@ -41,24 +41,13 @@ namespace Daramkun.Dweb
 
 				server.WriteLog ( "V{0}, [{1}] {2}", header.HttpVersion, header.RequestMethod, header.QueryString );
 
-				if ( header.Fields.ContainsKey ( HttpRequestHeaderField.ContentLength ) )
-				{
-					int contentLength = int.Parse ( header.Fields [ HttpRequestHeaderField.ContentLength ] as string );
-					if ( contentLength > 0 )
-					{
-						// POST data
-					}
-				}
-
-				// Next data receive
-				ReceiveRequest ();
-
 				// Response start
 				VirtualSite virtualSite = null;
 				try
 				{
 					if ( header.Fields.ContainsKey ( HttpRequestHeaderField.Host ) )
-						virtualSite = server.VirtualSites [ header.Fields [ HttpRequestHeaderField.Host ] as string ];
+						if ( server.VirtualSites.ContainsKey ( header.Fields [ HttpRequestHeaderField.Host ] as string ) )
+							virtualSite = server.VirtualSites [ header.Fields [ HttpRequestHeaderField.Host ] as string ];
 					if ( virtualSite == null )
 						virtualSite = server.VirtualSites.First ().Value;
 				}
@@ -69,6 +58,27 @@ namespace Daramkun.Dweb
 					SendData ( responseHeader, null );
 					return;
 				}
+
+				if ( header.Fields.ContainsKey ( HttpRequestHeaderField.ContentLength ) )
+				{
+					int contentLength = int.Parse ( header.Fields [ HttpRequestHeaderField.ContentLength ] as string );
+					if ( contentLength > virtualSite.MaximumPostSize )
+					{
+						HttpResponseHeader responseHeader = new HttpResponseHeader ( HttpStatusCode.RequestEntityTooLarge );
+						SendData ( responseHeader, null );
+						ReceiveRequest ();
+						return;
+					}
+					if ( contentLength > 0 )
+					{
+						// POST data
+
+					}
+				}
+
+				// Next data receive
+				ReceiveRequest ();
+
 				// If is redirect host then send the redirection response
 				if ( virtualSite.IsRedirect )
 				{
@@ -91,31 +101,67 @@ namespace Daramkun.Dweb
 					// Get real path of url
 					bool subDirectoried = false;
 					HttpUrl url = new HttpUrl ( header.QueryString );
-					string filename;
+					string filename = null;
 					if ( url.Path.Length > 2 )
 					{
 						foreach ( KeyValuePair<string, string> k in virtualSite.SubDirectory )
 						{
 							if ( url.Path [ 1 ] == k.Key )
 							{
-								filename = GetFilename ( k.Key, url );
+								filename = GetFilename ( k.Key, url, 2 );
 								subDirectoried = true;
+								break;
 							}
 						}
 					}
 
 					if ( !subDirectoried )
-						filename = GetFilename ( virtualSite.RootDirectory, url );
+						filename = GetFilename ( virtualSite.RootDirectory, url, 1 );
+
+					if ( !File.Exists ( filename ) )
+					{
+						string temp = filename;
+						foreach ( string indexName in server.IndexNames )
+						{
+							if ( File.Exists ( filename + "\\" + indexName ) )
+							{
+								filename = filename + "\\" + indexName;
+								break;
+							}
+						}
+					}
+
+					HttpResponseHeader responseHeader = new HttpResponseHeader ();
+					Stream responseStream = null;
+					ContentType fileContentType = null;
+					
+					if ( server.Mimes.ContainsKey ( Path.GetExtension ( filename ) ) )
+						fileContentType = server.Mimes [ Path.GetExtension ( filename ) ];
+					else fileContentType = new ContentType ( "text/plain" );
+					bool isPluginProceed = false;
+
+					foreach ( IPlugin plugin in server.Plugins )
+					{
+						if ( isPluginProceed = plugin.Run ( header, fileContentType, filename, url, out responseHeader, out responseStream ) )
+							break;
+					}
+					if ( !isPluginProceed )
+						server.OriginalPlugin.Run ( header, fileContentType, filename, url, out responseHeader, out responseStream );
+
+					SendData ( responseHeader, responseStream );
 				}
 			}, null );
 		}
 
-		private string GetFilename ( string baseDirectory, HttpUrl url )
+		private string GetFilename ( string baseDirectory, HttpUrl url, int startIndex )
 		{
 			StringBuilder filename = new StringBuilder ();
 			filename.Append ( baseDirectory );
 			if ( filename [ filename.Length - 1 ] == '\\' )
 				filename.Remove ( filename.Length - 1, 1 );
+
+			for ( int i = startIndex; i < url.Path.Length; ++i )
+				filename.AppendFormat ( "\\{0}", url.Path [ i ] );
 
 			return filename.ToString ();
 		}
