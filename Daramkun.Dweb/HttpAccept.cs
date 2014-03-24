@@ -132,10 +132,56 @@ namespace Daramkun.Dweb
 		private void ReadMultipartPOSTData ( BinaryReader reader, int contentLength, string boundary, Dictionary<string, string> dictionary )
 		{
 			byte b;
+			bool partSeparatorMode = true;
+			MemoryStream tempStream = new MemoryStream ();
+			StringBuilder builder = new StringBuilder ();
+			reader.ReadByte ();
+			reader.ReadByte ();
 			while ( reader.BaseStream.Position != contentLength )
 			{
-				b = reader.ReadByte ();
-
+				if ( partSeparatorMode )
+				{
+					byte [] data = reader.ReadBytes ( boundary.Length );
+				}
+				else
+				{
+					if ( ( char ) ( b = reader.ReadByte () ) == '\r' )
+					{
+						if ( ( char ) ( b = reader.ReadByte () ) == '\n' )
+						{
+							if ( ( char ) ( b = reader.ReadByte () ) == '-' )
+							{
+								if ( ( char ) ( b = reader.ReadByte () ) == '-' )
+								{
+									partSeparatorMode = true;
+									builder.Append ( '-' );
+								}
+								else
+								{
+									tempStream.WriteByte ( ( byte ) '\r' );
+									tempStream.WriteByte ( ( byte ) '\n' );
+									tempStream.WriteByte ( ( byte ) '-' );
+									tempStream.WriteByte ( b );
+								}
+							}
+							else
+							{
+								tempStream.WriteByte ( ( byte ) '\r' );
+								tempStream.WriteByte ( ( byte ) '\n' );
+								tempStream.WriteByte ( b );
+							}
+						}
+						else
+						{
+							tempStream.WriteByte ( ( byte ) '\r' );
+							tempStream.WriteByte ( b );
+						}
+					}
+					else
+					{
+						tempStream.WriteByte ( b );
+					}
+				}
 			}
 			throw new NotImplementedException ();
 		}
