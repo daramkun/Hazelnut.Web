@@ -1,0 +1,11 @@
+﻿- HTTP request/response data structure
+http://chonnom.com/bbs/board.php?bo_table=B17&wr_id=22
+
+- HTTP header fields
+http://en.wikipedia.org/wiki/List_of_HTTP_header_fields
+
+- HTTP status codes
+http://en.wikipedia.org/wiki/List_of_HTTP_status_codes
+
+- POST multipart data structure
+http://stackoverflow.com/questions/8659808/how-does-http-file-upload-work

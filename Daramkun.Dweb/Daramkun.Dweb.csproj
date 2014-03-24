@@ -51,11 +51,14 @@
     <Compile Include="HttpStatusCode.cs" />
     <Compile Include="HttpUrl.cs" />
     <Compile Include="IPlugin.cs" />
+    <Compile Include="PluginArgument.cs" />
     <Compile Include="Plugins\OriginalPlugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="VirtualSite.cs" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Content Include="THANKSTO.txt" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
