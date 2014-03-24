@@ -85,12 +85,17 @@ namespace Daramkun.Dweb
 							MemoryStream memoryStream = new MemoryStream ();
 							byte [] temp = new byte [ 1024 ];
 							int length = 0;
-							while ( length < contentLength )
+							try
 							{
-								int len = socket.Receive ( temp, 1024, SocketFlags.None );
-								length += len;
-								memoryStream.Write ( temp, 0, len );
+								while ( length < contentLength )
+								{
+									int len = socket.Receive ( temp, 1024, SocketFlags.None );
+									length += len;
+									memoryStream.Write ( temp, 0, len );
+								}
 							}
+							catch { server.SocketIsDead ( this ); return; }
+
 							string postString = HttpUtility.UrlDecode ( memoryStream.ToArray (), 0, ( int ) memoryStream.Length, Encoding.UTF8 );
 							string [] tt = postString.Split ( '&' );
 							tt = tt [ 1 ].Split ( '&' );
@@ -106,7 +111,11 @@ namespace Daramkun.Dweb
 							ContentType contentType = new ContentType ( header.Fields [ HttpRequestHeaderField.ContentType ] as string );
 							using ( NetworkStream networkStream = new NetworkStream ( socket, false ) )
 							{
-								ReadMultipartPOSTData ( new BinaryReader ( networkStream ), contentLength, contentType.Boundary, header.PostData );
+								try
+								{
+									ReadMultipartPOSTData ( new BinaryReader ( networkStream ), contentLength, contentType.Boundary, header.PostData );
+								}
+								catch { server.SocketIsDead ( this ); return; }
 							}
 						}
 					}
@@ -131,12 +140,10 @@ namespace Daramkun.Dweb
 
 		private void ReadMultipartPOSTData ( BinaryReader reader, int contentLength, string boundary, Dictionary<string, string> dictionary )
 		{
-			byte b;
 			bool partSeparatorMode = true, firstLooping = true;
-			MemoryStream tempStream = new MemoryStream ();
+			Stream tempStream = null;
 			Dictionary<string, string> fields = new Dictionary<string, string> ();
-			reader.ReadByte ();
-			reader.ReadByte ();
+			reader.ReadBytes ( 2 );
 			while ( true )
 			{
 				if ( partSeparatorMode )
@@ -151,59 +158,45 @@ namespace Daramkun.Dweb
 					else
 					{
 						if ( !firstLooping )
-							AddToPOST ( dictionary, fields, tempStream );
+							AddToPOST ( dictionary, fields, tempStream as MemoryStream );
 
 						if ( Encoding.UTF8.GetString ( reader.ReadBytes ( 2 ) ) == "--" )
+						{
+							if ( tempStream != null ) tempStream.Dispose ();
 							return;
+						}
 						else
 						{
 							string key;
 							fields.Clear ();
 							while ( ( key = ReadToColon ( reader ) ) != null )
 								fields.Add ( key, ReadToNextLine ( reader ).Trim () );
-							tempStream.Position = 0;
-							tempStream.Flush ();
+							string filename = ReadFilename ( fields [ HttpResponseHeaderField.ContentDisposition ] );
+							if ( tempStream != null ) tempStream.Dispose ();
+							tempStream = ( filename == null ) ?
+								new MemoryStream () as Stream :
+								new FileStream (
+									Path.Combine ( server.TemporaryDirectory,
+									Convert.ToBase64String ( Encoding.UTF8.GetBytes ( filename ) ) + Path.GetExtension ( filename )
+								), FileMode.Create ) as Stream;
 							partSeparatorMode = false;
 						}
 					}
 				}
 				else
 				{
-					if ( ( char ) ( b = reader.ReadByte () ) == '\r' )
+					byte b = reader.ReadByte ();
+					if ( ( char ) b == '\r' )
 					{
-						if ( ( char ) ( b = reader.ReadByte () ) == '\n' )
-						{
-							if ( ( char ) ( b = reader.ReadByte () ) == '-' )
-							{
-								if ( ( char ) ( b = reader.ReadByte () ) == '-' )
-								{
-									partSeparatorMode = true;
-								}
-								else
-								{
-									tempStream.WriteByte ( ( byte ) '\r' );
-									tempStream.WriteByte ( ( byte ) '\n' );
-									tempStream.WriteByte ( ( byte ) '-' );
-									tempStream.WriteByte ( b );
-								}
-							}
-							else
-							{
-								tempStream.WriteByte ( ( byte ) '\r' );
-								tempStream.WriteByte ( ( byte ) '\n' );
-								tempStream.WriteByte ( b );
-							}
-						}
+						byte [] tt = reader.ReadBytes ( 3 );
+						if ( Encoding.UTF8.GetString ( tt ) == "\n--" ) partSeparatorMode = true;
 						else
 						{
 							tempStream.WriteByte ( ( byte ) '\r' );
-							tempStream.WriteByte ( b );
+							tempStream.Write ( tt, 0, 3 );
 						}
 					}
-					else
-					{
-						tempStream.WriteByte ( b );
-					}
+					else tempStream.WriteByte ( b );
 				}
 				firstLooping = false;
 			}

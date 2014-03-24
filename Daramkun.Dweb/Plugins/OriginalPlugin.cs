@@ -11,11 +11,11 @@ namespace Daramkun.Dweb.Plugins
 	{
 		public bool Run ( PluginArgument args, out HttpResponseHeader header, out Stream stream )
 		{
-			if ( File.Exists ( filename ) )
+			if ( File.Exists ( args.OriginalFilename ) )
 			{
 				header = new HttpResponseHeader ( HttpStatusCode.OK );
-				stream = File.OpenRead ( filename );
-				header.ContentType = mime;
+				stream = File.OpenRead ( args.OriginalFilename );
+				header.ContentType = args.ContentType;
 				header.ContentLength = stream.Length;
 			}
 			else
