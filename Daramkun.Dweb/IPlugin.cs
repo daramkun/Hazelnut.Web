@@ -10,6 +10,6 @@ namespace Daramkun.Dweb
 {
 	public interface IPlugin
 	{
-		bool Run ( HttpRequestHeader reqHeader, ContentType mime, string filename, HttpUrl queryString, out HttpResponseHeader header, out Stream stream );
+		bool Run ( PluginArgument args, out HttpResponseHeader header, out Stream stream );
 	}
 }

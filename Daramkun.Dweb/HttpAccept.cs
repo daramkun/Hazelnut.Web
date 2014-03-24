@@ -330,14 +330,24 @@ namespace Daramkun.Dweb
 			else fileContentType = new ContentType ( "application/octet-stream" );
 			// Find Plugin for send data
 			bool isPluginProceed = false;
+			PluginArgument args = new PluginArgument ()
+			{
+				RequestMethod = header.RequestMethod,
+				Url = url,
+				Get = url.QueryString,
+				Post = header.PostData,
+				ContentType = fileContentType,
+				OriginalFilename = filename,
+				RequestFields = header.Fields
+			};
 			foreach ( IPlugin plugin in server.Plugins )
 			{
-				if ( isPluginProceed = plugin.Run ( header, fileContentType, filename, url, out responseHeader, out responseStream ) )
+				if ( isPluginProceed = plugin.Run ( args, out responseHeader, out responseStream ) )
 					break;
 			}
 			// If Cannot found Plugin, Processing Original plugin
 			if ( !isPluginProceed )
-				server.OriginalPlugin.Run ( header, fileContentType, filename, url, out responseHeader, out responseStream );
+				server.OriginalPlugin.Run ( args, out responseHeader, out responseStream );
 
 			// Send to client
 			SendData ( responseHeader, responseStream );
@@ -352,6 +362,10 @@ namespace Daramkun.Dweb
 				header.ContentType = new ContentType ( "text/html" );
 				header.ContentLength = ( int ) stream.Length;
 			}
+
+			if ( header.Fields.ContainsKey ( HttpResponseHeaderField.Server ) )
+				header.Fields [ HttpResponseHeaderField.Server ] = server.ServerName;
+			else header.Fields.Add ( HttpResponseHeaderField.Server, server.ServerName );
 
 			byte [] headerData = Encoding.UTF8.GetBytes ( header.ToString () );
 			socket.Send ( headerData );

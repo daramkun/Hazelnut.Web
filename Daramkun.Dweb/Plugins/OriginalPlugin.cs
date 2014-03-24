@@ -9,7 +9,7 @@ namespace Daramkun.Dweb.Plugins
 {
 	public class OriginalPlugin : IPlugin
 	{
-		public bool Run ( HttpRequestHeader reqHeader, ContentType mime, string filename, HttpUrl queryString, out HttpResponseHeader header, out Stream stream )
+		public bool Run ( PluginArgument args, out HttpResponseHeader header, out Stream stream )
 		{
 			if ( File.Exists ( filename ) )
 			{
