@@ -31,7 +31,11 @@ namespace Daramkun.Dweb
 		{
 			socket.BeginReceive ( new byte [ 0 ], 0, 0, SocketFlags.None, ( IAsyncResult ar ) =>
 			{
-				socket.EndReceive ( ar );
+				try
+				{
+					socket.EndReceive ( ar );
+				}
+				catch { server.SocketIsDead ( this ); }
 				HttpRequestHeader header = new HttpRequestHeader ();
 
 				using ( NetworkStream networkStream = new NetworkStream ( socket, false ) )

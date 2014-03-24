@@ -92,6 +92,7 @@ namespace Daramkun.Dweb
 		{
 			clients.Remove ( accept.Socket );
 			sockets.Remove ( accept.Socket );
+			accept.Dispose ();
 		}
 
 		public void AddPlugin ( IPlugin plugin ) { plugins.Add ( plugin ); }
