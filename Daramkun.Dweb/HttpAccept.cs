@@ -132,16 +132,40 @@ namespace Daramkun.Dweb
 		private void ReadMultipartPOSTData ( BinaryReader reader, int contentLength, string boundary, Dictionary<string, string> dictionary )
 		{
 			byte b;
-			bool partSeparatorMode = true;
+			bool partSeparatorMode = true, firstLooping = true;
 			MemoryStream tempStream = new MemoryStream ();
-			StringBuilder builder = new StringBuilder ();
+			Dictionary<string, string> fields = new Dictionary<string, string> ();
 			reader.ReadByte ();
 			reader.ReadByte ();
-			while ( reader.BaseStream.Position != contentLength )
+			while ( true )
 			{
 				if ( partSeparatorMode )
 				{
 					byte [] data = reader.ReadBytes ( boundary.Length );
+					if ( Encoding.UTF8.GetString ( data ) != boundary )
+					{
+						tempStream.Write ( new byte [] { ( byte ) '\r', ( byte ) '\n', ( byte ) '-', ( byte ) '-' }, 0, 4 );
+						tempStream.Write ( data, 0, data.Length );
+						partSeparatorMode = false;
+					}
+					else
+					{
+						if ( !firstLooping )
+							AddToPOST ( dictionary, fields, tempStream );
+
+						if ( Encoding.UTF8.GetString ( reader.ReadBytes ( 2 ) ) == "--" )
+							return;
+						else
+						{
+							string key;
+							fields.Clear ();
+							while ( ( key = ReadToColon ( reader ) ) != null )
+								fields.Add ( key, ReadToNextLine ( reader ).Trim () );
+							tempStream.Position = 0;
+							tempStream.Flush ();
+							partSeparatorMode = false;
+						}
+					}
 				}
 				else
 				{
@@ -154,7 +178,6 @@ namespace Daramkun.Dweb
 								if ( ( char ) ( b = reader.ReadByte () ) == '-' )
 								{
 									partSeparatorMode = true;
-									builder.Append ( '-' );
 								}
 								else
 								{
@@ -182,8 +205,58 @@ namespace Daramkun.Dweb
 						tempStream.WriteByte ( b );
 					}
 				}
+				firstLooping = false;
 			}
-			throw new NotImplementedException ();
+		}
+
+		private void AddToPOST ( Dictionary<string, string> dictionary, Dictionary<string, string> fields, MemoryStream tempStream )
+		{
+			string filename = ReadFilename ( fields [ HttpResponseHeaderField.ContentDisposition ] );
+			dictionary.Add ( ReadName ( fields [ HttpResponseHeaderField.ContentDisposition ] ), filename ?? Encoding.UTF8.GetString ( tempStream.ToArray () ) );
+		}
+
+		private string ReadName ( string disposition )
+		{
+			Regex regex = new Regex ( "name=\"(([a-zA-Z0-9가-힣_]|-| )*)\"" );
+			Match match = regex.Match ( disposition );
+			return match.Groups [ 1 ].Value;
+		}
+
+		private string ReadFilename ( string disposition )
+		{
+			Regex regex = new Regex ( "filename=\"((.*)*)\"" );
+			Match match = regex.Match ( disposition );
+			if ( match == null || match.Groups.Count == 1 ) return null;
+			return match.Groups [ 1 ].Value;	
+		}
+
+		private string ReadToColon ( BinaryReader reader )
+		{
+			StringBuilder builder = new StringBuilder ();
+			char ch;
+			while ( ( ch = reader.ReadChar () ) != ':' )
+			{
+				if ( ch == '\r' ) { reader.ReadChar (); return null; }
+				builder.Append ( ch );
+			}
+			return builder.ToString ();
+		}
+
+		private string ReadToNextLine ( BinaryReader reader )
+		{
+			StringBuilder builder = new StringBuilder ();
+			char ch;
+			bool isStr = false;
+			while ( ( ch = reader.ReadChar () ) == ' ' ) ;
+			if ( ch != ' ' ) builder.Append ( ch );
+			if ( ch == '"' ) isStr = true;
+			while ( ( ch = reader.ReadChar () ) != '\r' || isStr )
+			{
+				builder.Append ( ch );
+				if ( ch == '"' ) isStr = !isStr;
+			}
+			reader.ReadChar ();
+			return builder.ToString ();
 		}
 
 		private string GetFilename ( string baseDirectory, HttpUrl url, int startIndex )
