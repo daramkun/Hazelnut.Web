@@ -6,9 +6,7 @@ using System.Net.Mime;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using System.Web;
-using Daramkun.Dweb.Exceptions;
 
 namespace Daramkun.Dweb
 {
@@ -72,7 +70,7 @@ namespace Daramkun.Dweb
 						byte [] temp = new byte [ 1024 ];
 						int length = 0;
 						while ( length == contentLength )
-							length += socket.Receive ( temp, contentLength - length, SocketFlags.None );
+							length += socket.Receive ( temp, contentLength - length >= 1024 ? 1024 : contentLength - length, SocketFlags.None );
 						HttpResponseHeader responseHeader = new HttpResponseHeader ( HttpStatusCode.RequestEntityTooLarge );
 						SendData ( responseHeader, null );
 						ReceiveRequest ();
@@ -108,7 +106,7 @@ namespace Daramkun.Dweb
 							ContentType contentType = new ContentType ( header.Fields [ HttpRequestHeaderField.ContentType ] as string );
 							using ( NetworkStream networkStream = new NetworkStream ( socket, false ) )
 							{
-								
+								ReadMultipartPOSTData ( new BinaryReader ( networkStream ), contentLength, contentType.Boundary, header.PostData );
 							}
 						}
 					}
@@ -126,75 +124,20 @@ namespace Daramkun.Dweb
 				}
 				else
 				{
-					// Rewrite url
-					foreach ( KeyValuePair<Regex, string> k in virtualSite.RewriteRules )
-					{
-						if ( k.Key.IsMatch ( header.QueryString, 0 ) )
-						{
-							header.QueryString = k.Key.Replace ( header.QueryString, k.Value );
-							break;
-						}
-					}
-
-					// Get real path of url
-					bool subDirectoried = false;
-					HttpUrl url = new HttpUrl ( header.QueryString );
-					string filename = null;
-					if ( url.Path.Length > 2 )
-					{
-						// Find sub directory
-						foreach ( KeyValuePair<string, string> k in virtualSite.SubDirectory )
-						{
-							// If found sub directory, apply sub directory
-							if ( url.Path [ 1 ] == k.Key )
-							{
-								filename = GetFilename ( k.Key, url, 2 );
-								subDirectoried = true;
-								break;
-							}
-						}
-					}
-					// If can't found sub directory, apply root directory
-					if ( !subDirectoried )
-						filename = GetFilename ( virtualSite.RootDirectory, url, 1 );
-
-					// Cannot found file, apply index filename
-					if ( !File.Exists ( filename ) )
-					{
-						string temp = filename;
-						foreach ( string indexName in server.IndexNames )
-						{
-							if ( File.Exists ( filename + "\\" + indexName ) )
-							{
-								filename = filename + "\\" + indexName;
-								break;
-							}
-						}
-					}
-
-					HttpResponseHeader responseHeader = new HttpResponseHeader ();
-					Stream responseStream = null;
-					ContentType fileContentType = null;
-					
-					// Find Content-Type
-					if ( server.Mimes.ContainsKey ( Path.GetExtension ( filename ) ) )
-						fileContentType = server.Mimes [ Path.GetExtension ( filename ) ];
-					else fileContentType = new ContentType ( "application/octet-stream" );
-					// Find Plugin for send data
-					bool isPluginProceed = false;
-					foreach ( IPlugin plugin in server.Plugins )
-					{
-						if ( isPluginProceed = plugin.Run ( header, fileContentType, filename, url, out responseHeader, out responseStream ) )
-							break;
-					}
-					// If Cannot found Plugin, Processing Original plugin
-					if ( !isPluginProceed )
-						server.OriginalPlugin.Run ( header, fileContentType, filename, url, out responseHeader, out responseStream );
-
-					// Send to client
-					SendData ( responseHeader, responseStream );
+					Response ( header, virtualSite );
 				}
 			}, null );
+		}
+
+		private void ReadMultipartPOSTData ( BinaryReader reader, int contentLength, string boundary, Dictionary<string, string> dictionary )
+		{
+			byte b;
+			while ( reader.BaseStream.Position != contentLength )
+			{
+				b = reader.ReadByte ();
+
+			}
+			throw new NotImplementedException ();
 		}
 
 		private string GetFilename ( string baseDirectory, HttpUrl url, int startIndex )
@@ -208,6 +151,77 @@ namespace Daramkun.Dweb
 				filename.AppendFormat ( "\\{0}", url.Path [ i ] );
 
 			return filename.ToString ();
+		}
+
+		private void Response ( HttpRequestHeader header, VirtualSite virtualSite )
+		{
+			// Rewrite url
+			foreach ( KeyValuePair<Regex, string> k in virtualSite.RewriteRules )
+			{
+				if ( k.Key.IsMatch ( header.QueryString, 0 ) )
+				{
+					header.QueryString = k.Key.Replace ( header.QueryString, k.Value );
+					break;
+				}
+			}
+
+			// Get real path of url
+			bool subDirectoried = false;
+			HttpUrl url = new HttpUrl ( header.QueryString );
+			string filename = null;
+			if ( url.Path.Length > 2 )
+			{
+				// Find sub directory
+				foreach ( KeyValuePair<string, string> k in virtualSite.SubDirectory )
+				{
+					// If found sub directory, apply sub directory
+					if ( url.Path [ 1 ] == k.Key )
+					{
+						filename = GetFilename ( k.Key, url, 2 );
+						subDirectoried = true;
+						break;
+					}
+				}
+			}
+			// If can't found sub directory, apply root directory
+			if ( !subDirectoried )
+				filename = GetFilename ( virtualSite.RootDirectory, url, 1 );
+
+			// Cannot found file, apply index filename
+			if ( !File.Exists ( filename ) )
+			{
+				string temp = filename;
+				foreach ( string indexName in server.IndexNames )
+				{
+					if ( File.Exists ( filename + "\\" + indexName ) )
+					{
+						filename = filename + "\\" + indexName;
+						break;
+					}
+				}
+			}
+
+			HttpResponseHeader responseHeader = new HttpResponseHeader ();
+			Stream responseStream = null;
+			ContentType fileContentType = null;
+
+			// Find Content-Type
+			if ( server.Mimes.ContainsKey ( Path.GetExtension ( filename ) ) )
+				fileContentType = server.Mimes [ Path.GetExtension ( filename ) ];
+			else fileContentType = new ContentType ( "application/octet-stream" );
+			// Find Plugin for send data
+			bool isPluginProceed = false;
+			foreach ( IPlugin plugin in server.Plugins )
+			{
+				if ( isPluginProceed = plugin.Run ( header, fileContentType, filename, url, out responseHeader, out responseStream ) )
+					break;
+			}
+			// If Cannot found Plugin, Processing Original plugin
+			if ( !isPluginProceed )
+				server.OriginalPlugin.Run ( header, fileContentType, filename, url, out responseHeader, out responseStream );
+
+			// Send to client
+			SendData ( responseHeader, responseStream );
 		}
 
 		private void SendData ( HttpResponseHeader header, Stream stream )
