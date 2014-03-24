@@ -90,8 +90,11 @@ namespace Daramkun.Dweb
 
 		public void SocketIsDead ( HttpAccept accept )
 		{
-			clients.Remove ( accept.Socket );
-			sockets.Remove ( accept.Socket );
+			lock ( clients )
+			{
+				clients.Remove ( accept.Socket );
+				sockets.Remove ( accept.Socket );
+			}
 			accept.Dispose ();
 		}
 
