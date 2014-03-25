@@ -53,104 +53,86 @@ namespace Daramkun.Dweb
 				catch { Server.SocketIsDead ( this ); return; }
 				HttpRequestHeader header = new HttpRequestHeader ();
 
-				using ( NetworkStream networkStream = new NetworkStream ( Socket, false ) )
+				using ( Stream networkStream = new NetworkStream ( Socket, false ) )
 				{
-					try { header = new HttpRequestHeader ( networkStream ); }
-					catch { Server.WriteLog ( "Invalid Request." ); Server.SocketIsDead ( this ); return; }
-				}
-
-				Server.WriteLog ( "V{0}, [{1}] {2}", header.HttpVersion, header.RequestMethod, header.QueryString );
-
-				// Response start
-				VirtualSite virtualSite = null;
-				try
-				{
-					if ( header.Fields.ContainsKey ( HttpHeaderField.Host ) )
-						if ( Server.VirtualSites.ContainsKey ( header.Fields [ HttpHeaderField.Host ] as string ) )
-							virtualSite = Server.VirtualSites [ header.Fields [ HttpHeaderField.Host ] as string ];
-					if ( virtualSite == null )
-						virtualSite = Server.VirtualSites.First ().Value;
-				}
-				catch
-				{
-					// If there is not virtual site, return error status
-					HttpResponseHeader responseHeader = new HttpResponseHeader ( HttpStatusCode.ServiceUnavailable );
-					SendData ( responseHeader, null );
-					return;
-				}
-
-				if ( header.Fields.ContainsKey ( HttpHeaderField.ContentLength ) )
-				{
-					int contentLength = int.Parse ( header.Fields [ HttpHeaderField.ContentLength ] as string );
-					if ( contentLength > virtualSite.MaximumPostSize )
+					try
 					{
-						byte [] temp = new byte [ 1024 ];
-						int length = 0;
-						while ( length == contentLength )
-							length += Socket.Receive ( temp, contentLength - length >= 1024 ? 1024 : contentLength - length, SocketFlags.None );
-						HttpResponseHeader responseHeader = new HttpResponseHeader ( HttpStatusCode.RequestEntityTooLarge );
-						SendData ( responseHeader, null );
-						ReceiveRequest ();
-						return;
-					}
-					if ( contentLength > 0 )
-					{
-						// POST data
-						if ( header.Fields [ HttpHeaderField.ContentType ] as string == "application/x-www-form-urlencoded" )
+						header = new HttpRequestHeader ( networkStream );
+						Server.WriteLog ( "V{0}, [{1}][{2}] {3}", header.HttpVersion, header.RequestMethod, header.Fields [ HttpHeaderField.Host ], header.QueryString );
+
+						// Response start
+						VirtualSite virtualSite = null;
+
+						if ( header.Fields.ContainsKey ( HttpHeaderField.Host ) )
+							if ( Server.VirtualSites.ContainsKey ( header.Fields [ HttpHeaderField.Host ] as string ) )
+								virtualSite = Server.VirtualSites [ header.Fields [ HttpHeaderField.Host ] as string ];
+						if ( virtualSite == null )
+							virtualSite = Server.VirtualSites.First ().Value;
+
+						if ( header.Fields.ContainsKey ( HttpHeaderField.ContentLength ) )
 						{
-							// URL Encoded POST data
-							MemoryStream memoryStream = new MemoryStream ();
-							byte [] temp = new byte [ 1024 ];
-							int length = 0;
-							try
+							int contentLength = int.Parse ( header.Fields [ HttpHeaderField.ContentLength ] as string );
+							if ( contentLength > virtualSite.MaximumPostSize )
 							{
-								while ( length < contentLength )
+								byte [] temp = new byte [ 1024 ];
+								int length = 0;
+								while ( length == contentLength )
+									length += Socket.Receive ( temp, contentLength - length >= 1024 ? 1024 : contentLength - length, SocketFlags.None );
+								HttpResponseHeader responseHeader = new HttpResponseHeader ( HttpStatusCode.RequestEntityTooLarge );
+								SendData ( responseHeader, null );
+								ReceiveRequest ();
+								return;
+							}
+							if ( contentLength > 0 )
+							{
+								// POST data
+								if ( header.Fields [ HttpHeaderField.ContentType ] as string == "application/x-www-form-urlencoded" )
 								{
-									int len = Socket.Receive ( temp, 1024, SocketFlags.None );
-									length += len;
-									memoryStream.Write ( temp, 0, len );
+									// URL Encoded POST data
+									MemoryStream memoryStream = new MemoryStream ();
+									byte [] temp = new byte [ 1024 ];
+									int length = 0;
+									while ( length < contentLength )
+									{
+										int len = Socket.Receive ( temp, 1024, SocketFlags.None );
+										length += len;
+										memoryStream.Write ( temp, 0, len );
+									}
+
+									string postString = HttpUtility.UrlDecode ( memoryStream.ToArray (), 0, ( int ) memoryStream.Length, Encoding.UTF8 );
+									string [] tt = postString.Split ( '&' );
+									tt = tt [ 1 ].Split ( '&' );
+									foreach ( string s in tt )
+									{
+										string [] temp2 = s.Split ( '=' );
+										header.PostData.Add ( temp2 [ 0 ], ( temp2.Length == 2 ) ? HttpUtility.UrlDecode ( temp2 [ 1 ] ) : null );
+									}
+								}
+								else
+								{
+									// Multipart POST data
+									ContentType contentType = new ContentType ( header.Fields [ HttpHeaderField.ContentType ] as string );
+									ReadMultipartPOSTData ( new BinaryReader ( networkStream ), contentLength, contentType.Boundary, header.PostData );
 								}
 							}
-							catch { Server.SocketIsDead ( this ); return; }
+						}
 
-							string postString = HttpUtility.UrlDecode ( memoryStream.ToArray (), 0, ( int ) memoryStream.Length, Encoding.UTF8 );
-							string [] tt = postString.Split ( '&' );
-							tt = tt [ 1 ].Split ( '&' );
-							foreach ( string s in tt )
-							{
-								string [] temp2 = s.Split ( '=' );
-								header.PostData.Add ( temp2 [ 0 ], ( temp2.Length == 2 ) ? HttpUtility.UrlDecode ( temp2 [ 1 ] ) : null );
-							}
+						// Next data receive
+						ReceiveRequest ();
+
+						// If is redirect host then send the redirection response
+						if ( virtualSite.IsRedirect )
+						{
+							HttpResponseHeader responseHeader = new HttpResponseHeader ( HttpStatusCode.MultipleChoices );
+							responseHeader.Fields.Add ( HttpHeaderField.Location, virtualSite.RootDirectory );
+							SendData ( responseHeader, null );
 						}
 						else
 						{
-							// Multipart POST data
-							ContentType contentType = new ContentType ( header.Fields [ HttpHeaderField.ContentType ] as string );
-							using ( NetworkStream networkStream = new NetworkStream ( Socket, false ) )
-							{
-								try
-								{
-									ReadMultipartPOSTData ( new BinaryReader ( networkStream ), contentLength, contentType.Boundary, header.PostData );
-								}
-								catch { Server.SocketIsDead ( this ); return; }
-							}
+							Response ( header, virtualSite );
 						}
 					}
-				}
-
-				// Next data receive
-				ReceiveRequest ();
-
-				// If is redirect host then send the redirection response
-				if ( virtualSite.IsRedirect )
-				{
-					HttpResponseHeader responseHeader = new HttpResponseHeader ( HttpStatusCode.MultipleChoices );
-					responseHeader.Fields.Add ( HttpHeaderField.Location, virtualSite.RootDirectory );
-					SendData ( responseHeader, null );
-				}
-				else
-				{
-					Response ( header, virtualSite );
+					catch { Server.SocketIsDead ( this ); return; }
 				}
 			}, null );
 		}
