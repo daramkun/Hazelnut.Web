@@ -41,7 +41,7 @@ namespace Daramkun.Dweb
 		{
 			if ( LogStream != null )
 			{
-				LogStream.Write ( "[{0:yyyy-MM-dd hh:mm:ss}][{0}] ", DateTime.Now, Thread.CurrentThread.ManagedThreadId );
+				LogStream.Write ( "[{0:yyyy-MM-dd hh:mm:ss}][{1}] ", DateTime.Now, Thread.CurrentThread.ManagedThreadId );
 				LogStream.WriteLine ( text, args );
 			}
 		}

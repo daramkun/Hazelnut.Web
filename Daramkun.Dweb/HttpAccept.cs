@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Mime;
@@ -7,7 +8,6 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Web;
-
 using FieldCollection = System.Collections.Generic.Dictionary<string, string>;
 
 namespace Daramkun.Dweb
@@ -56,7 +56,7 @@ namespace Daramkun.Dweb
 				using ( NetworkStream networkStream = new NetworkStream ( Socket, false ) )
 				{
 					try { header = new HttpRequestHeader ( networkStream ); }
-					catch { Server.WriteLog ( "Invalid Request." ); ReceiveRequest (); return; }
+					catch { Server.WriteLog ( "Invalid Request." ); Server.SocketIsDead ( this ); return; }
 				}
 
 				Server.WriteLog ( "V{0}, [{1}] {2}", header.HttpVersion, header.RequestMethod, header.QueryString );
@@ -160,46 +160,38 @@ namespace Daramkun.Dweb
 			bool partSeparatorMode = true, firstLooping = true;
 			Stream tempStream = null;
 			FieldCollection fields = new FieldCollection ();
-			byte [] multipartData = new byte [] { ( byte ) '\r', ( byte ) '\n', ( byte ) '-', ( byte ) '-' };
-			reader.ReadBytes ( 2 );
+			byte [] multipartData = new byte [ 4 + boundary.Length ];
+			Array.Copy ( new byte [] { ( byte ) '\r', ( byte ) '\n', ( byte ) '-', ( byte ) '-' }, multipartData, 4 );
+			Array.Copy ( Encoding.UTF8.GetBytes ( boundary ), 0, multipartData, 4, boundary.Length );
+			reader.ReadBytes ( 2 + boundary.Length );
 
 			while ( true )
 			{
 				if ( partSeparatorMode )
 				{
-					byte [] data = reader.ReadBytes ( boundary.Length );
-					if ( Encoding.UTF8.GetString ( data ) != boundary )
+					if ( !firstLooping )
+						AddToPOST ( dictionary, fields, tempStream as MemoryStream );
+
+					if ( Encoding.UTF8.GetString ( reader.ReadBytes ( 2 ) ) == "--" )
 					{
-						tempStream.Write ( multipartData, 0, 4 );
-						tempStream.Write ( data, 0, data.Length );
-						partSeparatorMode = false;
+						if ( tempStream != null ) tempStream.Dispose ();
+						return;
 					}
 					else
 					{
-						if ( !firstLooping )
-							AddToPOST ( dictionary, fields, tempStream as MemoryStream );
-
-						if ( Encoding.UTF8.GetString ( reader.ReadBytes ( 2 ) ) == "--" )
-						{
-							if ( tempStream != null ) tempStream.Dispose ();
-							return;
-						}
-						else
-						{
-							string key;
-							fields.Clear ();
-							while ( ( key = _Utility.ReadToColon ( reader ) ) != null )
-								fields.Add ( key, _Utility.ReadToNextLine ( reader ).Trim () );
-							string filename = _Utility.ReadFilename ( fields [ HttpHeaderField.ContentDisposition ] );
-							if ( tempStream != null ) tempStream.Dispose ();
-							tempStream = ( filename == null ) ?
-								new MemoryStream () as Stream :
-								new FileStream (
-									Path.Combine ( Server.TemporaryDirectory,
-									Convert.ToBase64String ( Encoding.UTF8.GetBytes ( filename ) ) + Path.GetExtension ( filename )
-								), FileMode.Create ) as Stream;
-							partSeparatorMode = false;
-						}
+						string key;
+						fields.Clear ();
+						while ( ( key = _Utility.ReadToColon ( reader ) ) != null )
+							fields.Add ( key, _Utility.ReadToNextLine ( reader ).Trim () );
+						string filename = _Utility.ReadFilename ( fields [ HttpHeaderField.ContentDisposition ] );
+						if ( tempStream != null ) tempStream.Dispose ();
+						tempStream = ( filename == null ) ?
+							new MemoryStream () as Stream :
+							new FileStream (
+								Path.Combine ( Server.TemporaryDirectory,
+								Convert.ToBase64String ( Encoding.UTF8.GetBytes ( filename ) ) + Path.GetExtension ( filename )
+							), FileMode.Create ) as Stream;
+						partSeparatorMode = false;
 					}
 				}
 				else
@@ -218,21 +210,14 @@ namespace Daramkun.Dweb
 							{
 								partSeparatorMode = true;
 								queue.Clear ();
-								queue = null;
 								break;
 							}
 						}
 						else
 						{
-							while ( queue.Count != 0 )
-								tempStream.WriteByte ( queue.Dequeue () );
-
-							if ( b == multipartData [ 0 ] )
-								queue.Enqueue ( b );
-							else
-								tempStream.WriteByte ( b );
-
-							multipartHeaderIndex = 0;
+							while ( queue.Count != 0 ) tempStream.WriteByte ( queue.Dequeue () );
+							if ( b == multipartData [ 0 ] ) { queue.Enqueue ( b ); multipartHeaderIndex = 1; }
+							else { tempStream.WriteByte ( b ); multipartHeaderIndex = 0; }
 						}
 					}
 				}
