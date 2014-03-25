@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.Mime;
 using System.Net.Sockets;
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,6 +24,7 @@ namespace Daramkun.Dweb
 		OriginalPlugin originalPlugin;
 
 		public string ServerName { get; set; }
+		public X509Certificate X509 { get; set; }
 
 		public List<IPlugin> Plugins { get; private set; }
 		public IPlugin OriginalPlugin { get { return originalPlugin; } }

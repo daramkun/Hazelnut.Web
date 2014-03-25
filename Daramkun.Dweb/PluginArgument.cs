@@ -7,7 +7,7 @@ using FieldCollection = System.Collections.Generic.Dictionary<string, string>;
 
 namespace Daramkun.Dweb
 {
-	public struct PluginArgument
+	public class PluginArgument
 	{
 		public HttpRequestMethod RequestMethod { get; set; }
 		public HttpUrl Url { get; set; }

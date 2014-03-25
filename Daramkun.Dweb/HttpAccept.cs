@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Mime;
+using System.Net.Security;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -53,7 +54,13 @@ namespace Daramkun.Dweb
 				catch { Server.SocketIsDead ( this ); return; }
 				HttpRequestHeader header = new HttpRequestHeader ();
 
-				using ( Stream networkStream = new NetworkStream ( Socket, false ) )
+				Stream networkStream = new NetworkStream ( Socket, false );
+				if ( Server.X509 != null )
+				{
+					networkStream = new SslStream ( networkStream );
+					( networkStream as SslStream ).AuthenticateAsServer ( Server.X509 );
+				}
+				using ( networkStream )
 				{
 					try
 					{
