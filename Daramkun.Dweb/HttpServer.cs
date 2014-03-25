@@ -14,7 +14,7 @@ using Daramkun.Dweb.Plugins;
 
 namespace Daramkun.Dweb
 {
-	public sealed class HttpServer : IDisposable
+	public class HttpServer : IDisposable
 	{
 		Socket listenSocket;
 		List<Socket> sockets;
@@ -72,6 +72,28 @@ namespace Daramkun.Dweb
 			IndexNames = new List<string> ( new string [] { "index.html", "index.htm", "index.dhtml", "index.xhtml" } );
 
 			Accepting ();
+		}
+
+		~HttpServer () { Dispose ( false ); }
+
+		protected virtual void Dispose ( bool isDisposing )
+		{
+			if ( isDisposing )
+			{
+				foreach ( KeyValuePair<Socket, HttpAccept> accept in clients )
+					accept.Value.Dispose ();
+				clients.Clear ();
+				sockets.Clear ();
+				listenSocket.Disconnect ( false );
+				listenSocket.Dispose ();
+				listenSocket = null;
+			}
+		}
+
+		public void Dispose ()
+		{
+			Dispose ( true );
+			GC.SuppressFinalize ( this );
 		}
 
 		private void Accepting ()
@@ -163,17 +185,6 @@ namespace Daramkun.Dweb
 			Mimes.Add ( ".mov", new ContentType ( "video/quicktime" ) );
 			Mimes.Add ( ".mkv", new ContentType ( "video/x-matroska" ) );
 			Mimes.Add ( ".webm", new ContentType ( "video/webm" ) );
-		}
-
-		public void Dispose ()
-		{
-			foreach ( KeyValuePair<Socket, HttpAccept> accept in clients )
-				accept.Value.Dispose ();
-			clients.Clear ();
-			sockets.Clear ();
-			listenSocket.Disconnect ( false );
-			listenSocket.Dispose ();
-			listenSocket = null;
 		}
 	}
 }

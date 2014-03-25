@@ -12,7 +12,7 @@ using FieldCollection = System.Collections.Generic.Dictionary<string, string>;
 
 namespace Daramkun.Dweb
 {
-	public sealed class HttpAccept : IDisposable
+	public class HttpAccept : IDisposable
 	{
 		HttpServer server;
 		Socket socket;
@@ -25,6 +25,23 @@ namespace Daramkun.Dweb
 			this.socket = socket;
 
 			ReceiveRequest ();
+		}
+
+		~HttpAccept() { Dispose ( false ); }
+
+		protected virtual void Dispose ( bool isDisposing )
+		{
+			if ( isDisposing )
+			{
+				socket.Disconnect ( false );
+				socket.Dispose ();
+			}
+		}
+
+		public void Dispose ()
+		{
+			Dispose ( true );
+			GC.SuppressFinalize ( this );
 		}
 
 		public void ReceiveRequest ()
@@ -210,7 +227,7 @@ namespace Daramkun.Dweb
 						else
 						{
 							while ( queue.Count != 0 )
-									tempStream.WriteByte ( queue.Dequeue () );
+								tempStream.WriteByte ( queue.Dequeue () );
 
 							if ( b == multipartData [ 0 ] )
 								queue.Enqueue ( b );
@@ -335,12 +352,6 @@ namespace Daramkun.Dweb
 				}
 				stream.Dispose ();
 			}
-		}
-
-		public void Dispose ()
-		{
-			socket.Disconnect ( false );
-			socket.Dispose ();
 		}
 	}
 }
