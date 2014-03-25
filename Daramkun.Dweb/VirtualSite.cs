@@ -10,16 +10,13 @@ namespace Daramkun.Dweb
 {
 	public class VirtualSite
 	{
-		Dictionary<string, string> subDir;
-		Dictionary<Regex, string> rewRule;
-
 		public string ServerHost { get; set; }
 		public string Administrator { get; set; }
 		public bool IsRedirect { get; set; }
 		public string RootDirectory { get; set; }
 		public int MaximumPostSize { get; set; }
-		public Dictionary<string, string> SubDirectory { get { return subDir; } }
-		public Dictionary<Regex, string> RewriteRules { get { return rewRule; } }
+		public Dictionary<string, string> SubDirectory { get; private set; }
+		public Dictionary<Regex, string> RewriteRules { get; private set; }
 
 		public VirtualSite ( string serverHost, string rootDir, bool isRedirect )
 		{
@@ -27,8 +24,8 @@ namespace Daramkun.Dweb
 			IsRedirect = isRedirect;
 			RootDirectory = rootDir;
 			MaximumPostSize = 8388608;								// 8.0MB
-			subDir = new Dictionary<string, string> ();
-			rewRule = new Dictionary<Regex, string> ();
+			SubDirectory = new Dictionary<string, string> ();
+			RewriteRules = new Dictionary<Regex, string> ();
 		}
 	}
 }

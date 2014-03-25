@@ -173,9 +173,9 @@ namespace Daramkun.Dweb
 						{
 							string key;
 							fields.Clear ();
-							while ( ( key = ReadToColon ( reader ) ) != null )
-								fields.Add ( key, ReadToNextLine ( reader ).Trim () );
-							string filename = ReadFilename ( fields [ HttpHeaderField.ContentDisposition ] );
+							while ( ( key = _Utility.ReadToColon ( reader ) ) != null )
+								fields.Add ( key, _Utility.ReadToNextLine ( reader ).Trim () );
+							string filename = _Utility.ReadFilename ( fields [ HttpHeaderField.ContentDisposition ] );
 							if ( tempStream != null ) tempStream.Dispose ();
 							tempStream = ( filename == null ) ?
 								new MemoryStream () as Stream :
@@ -199,11 +199,12 @@ namespace Daramkun.Dweb
 						{
 							queue.Enqueue ( b );
 							++multipartHeaderIndex;
-							if ( multipartHeaderIndex == 4 )
+							if ( multipartHeaderIndex == multipartData.Length )
 							{
 								partSeparatorMode = true;
 								queue.Clear ();
 								queue = null;
+								break;
 							}
 						}
 						else
@@ -226,65 +227,8 @@ namespace Daramkun.Dweb
 
 		private void AddToPOST ( FieldCollection dictionary, FieldCollection fields, MemoryStream tempStream )
 		{
-			string filename = ReadFilename ( fields [ HttpHeaderField.ContentDisposition ] );
-			dictionary.Add ( ReadName ( fields [ HttpHeaderField.ContentDisposition ] ), filename ?? Encoding.UTF8.GetString ( tempStream.ToArray () ) );
-		}
-
-		private string ReadName ( string disposition )
-		{
-			Regex regex = new Regex ( "name=\"(.*)\"" );
-			Match match = regex.Match ( disposition );
-			return match.Groups [ 1 ].Value;
-		}
-
-		private string ReadFilename ( string disposition )
-		{
-			Regex regex = new Regex ( "filename=\"(.*)\"" );
-			Match match = regex.Match ( disposition );
-			if ( match == null || match.Groups.Count == 1 ) return null;
-			return match.Groups [ 1 ].Value;	
-		}
-
-		private string ReadToColon ( BinaryReader reader )
-		{
-			StringBuilder builder = new StringBuilder ();
-			char ch;
-			while ( ( ch = reader.ReadChar () ) != ':' )
-			{
-				if ( ch == '\r' ) { reader.ReadChar (); return null; }
-				builder.Append ( ch );
-			}
-			return builder.ToString ();
-		}
-
-		private string ReadToNextLine ( BinaryReader reader )
-		{
-			StringBuilder builder = new StringBuilder ();
-			char ch;
-			bool isStr = false;
-			while ( ( ch = reader.ReadChar () ) == ' ' ) ;
-			if ( ch != ' ' ) builder.Append ( ch );
-			if ( ch == '"' ) isStr = true;
-			while ( ( ch = reader.ReadChar () ) != '\r' || isStr )
-			{
-				builder.Append ( ch );
-				if ( ch == '"' ) isStr = !isStr;
-			}
-			reader.ReadChar ();
-			return builder.ToString ();
-		}
-
-		private string GetFilename ( string baseDirectory, HttpUrl url, int startIndex )
-		{
-			StringBuilder filename = new StringBuilder ();
-			filename.Append ( baseDirectory );
-			if ( filename [ filename.Length - 1 ] == '\\' )
-				filename.Remove ( filename.Length - 1, 1 );
-
-			for ( int i = startIndex; i < url.Path.Length; ++i )
-				filename.AppendFormat ( "\\{0}", url.Path [ i ] );
-
-			return filename.ToString ();
+			string filename = _Utility.ReadFilename ( fields [ HttpHeaderField.ContentDisposition ] );
+			dictionary.Add ( _Utility.ReadName ( fields [ HttpHeaderField.ContentDisposition ] ), filename ?? Encoding.UTF8.GetString ( tempStream.ToArray () ) );
 		}
 
 		private void Response ( HttpRequestHeader header, VirtualSite virtualSite )
@@ -292,26 +236,25 @@ namespace Daramkun.Dweb
 			// Rewrite url
 			foreach ( KeyValuePair<Regex, string> k in virtualSite.RewriteRules )
 			{
-				if ( k.Key.IsMatch ( header.QueryString, 0 ) )
+				if ( k.Key.IsMatch ( header.QueryString.ToString (), 0 ) )
 				{
-					header.QueryString = k.Key.Replace ( header.QueryString, k.Value );
+					header.QueryString = new HttpUrl ( k.Key.Replace ( header.QueryString.ToString (), k.Value ) );
 					break;
 				}
 			}
 
 			// Get real path of url
 			bool subDirectoried = false;
-			HttpUrl url = new HttpUrl ( header.QueryString );
 			string filename = null;
-			if ( url.Path.Length > 2 )
+			if ( header.QueryString.Path.Length > 2 )
 			{
 				// Find sub directory
 				foreach ( KeyValuePair<string, string> k in virtualSite.SubDirectory )
 				{
 					// If found sub directory, apply sub directory
-					if ( url.Path [ 1 ] == k.Key )
+					if ( header.QueryString.Path [ 1 ] == k.Key )
 					{
-						filename = GetFilename ( k.Key, url, 2 );
+						filename = _Utility.GetFilename ( k.Key, header.QueryString, 2 );
 						subDirectoried = true;
 						break;
 					}
@@ -319,7 +262,7 @@ namespace Daramkun.Dweb
 			}
 			// If can't found sub directory, apply root directory
 			if ( !subDirectoried )
-				filename = GetFilename ( virtualSite.RootDirectory, url, 1 );
+				filename = _Utility.GetFilename ( virtualSite.RootDirectory, header.QueryString, 1 );
 
 			// Cannot found file, apply index filename
 			if ( !File.Exists ( filename ) )
@@ -347,8 +290,8 @@ namespace Daramkun.Dweb
 			PluginArgument args = new PluginArgument ()
 			{
 				RequestMethod = header.RequestMethod,
-				Url = url,
-				Get = url.QueryString,
+				Url = header.QueryString,
+				Get = header.QueryString.QueryString,
 				Post = header.PostData,
 				ContentType = fileContentType,
 				OriginalFilename = filename,

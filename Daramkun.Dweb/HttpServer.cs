@@ -19,31 +19,30 @@ namespace Daramkun.Dweb
 		Socket listenSocket;
 		List<Socket> sockets;
 		Dictionary<Socket, HttpAccept> clients;
-		List<IPlugin> plugins;
-		OriginalPlugin originalPlugin;
-		Dictionary<string, ContentType> mimes;
-		Dictionary<string, VirtualSite> virtualSites;
-		Dictionary<HttpStatusCode, Stream> statusPage;
 
-		TextWriter logStream;
+		OriginalPlugin originalPlugin;
 
 		public string ServerName { get; set; }
-		public List<IPlugin> Plugins { get { return plugins; } }
+
+		public List<IPlugin> Plugins { get; private set; }
 		public IPlugin OriginalPlugin { get { return originalPlugin; } }
-		public Dictionary<string, ContentType> Mimes { get { return mimes; } }
-		public Dictionary<string, VirtualSite> VirtualSites { get { return virtualSites; } }
-		public TextWriter LogStream { get { return logStream; } set { logStream = value; } }
-		public Dictionary<HttpStatusCode, Stream> StatusPage { get { return statusPage; } }
-		public string [] IndexNames { get; set; }
+
+		public Dictionary<string, ContentType> Mimes { get; private set; }
+		public Dictionary<string, VirtualSite> VirtualSites { get; private set; }
+		public Dictionary<HttpStatusCode, Stream> StatusPage { get; private set; }
+
+		public TextWriter LogStream { get; set; }
+
+		public List<string> IndexNames { get; private set; }
 		public string TemporaryDirectory { get; set; }
 
 		[Conditional ( "DEBUG" )]
 		public void WriteLog ( string text, params object [] args )
 		{
-			if ( logStream != null )
+			if ( LogStream != null )
 			{
-				logStream.Write ( "[{0:yyyy-MM-dd hh:mm:ss}]", DateTime.Now );
-				logStream.WriteLine ( text, args );
+				LogStream.Write ( "[{0:yyyy-MM-dd hh:mm:ss}][{0}] ", DateTime.Now, Thread.CurrentThread.ManagedThreadId );
+				LogStream.WriteLine ( text, args );
 			}
 		}
 
@@ -51,7 +50,7 @@ namespace Daramkun.Dweb
 		{
 			ServerName = string.Format ( "Daramkun's Dweb - the Lightweight HTTP Server/{0}", Assembly.Load ( "Daramkun.Dweb" ).GetName ().Version );
 
-			this.logStream = logStream;
+			LogStream = logStream;
 
 			listenSocket = new Socket ( endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp );
 			listenSocket.Bind ( endPoint );
@@ -59,18 +58,18 @@ namespace Daramkun.Dweb
 
 			WriteLog ( "Initialized: {0}", endPoint );
 
-			mimes = new Dictionary<string, ContentType> ();
-			virtualSites = new Dictionary<string, VirtualSite> ();
-			plugins = new List<IPlugin> ();
+			Mimes = new Dictionary<string, ContentType> ();
+			VirtualSites = new Dictionary<string, VirtualSite> ();
+			Plugins = new List<IPlugin> ();
 			originalPlugin = new OriginalPlugin ();
 
 			sockets = new List<Socket> ();
 			clients = new Dictionary<Socket, HttpAccept> ();
 
-			statusPage = new Dictionary<HttpStatusCode, Stream> ();
+			StatusPage = new Dictionary<HttpStatusCode, Stream> ();
 
 			TemporaryDirectory = Path.GetTempPath ();
-			IndexNames = new string [] { "index.html", "index.htm", "index.dhtml", "index.xhtml" };
+			IndexNames = new List<string> ( new string [] { "index.html", "index.htm", "index.dhtml", "index.xhtml" } );
 
 			Accepting ();
 		}
@@ -98,75 +97,72 @@ namespace Daramkun.Dweb
 			accept.Dispose ();
 		}
 
-		public void AddPlugin ( IPlugin plugin ) { plugins.Add ( plugin ); }
-		public void RemovePlugin ( IPlugin plugin ) { plugins.Remove ( plugin ); }
-
 		public bool IsServerAlive { get { return listenSocket != null; } }
 
 		public void AddDefaultMimes ()
 		{
-			mimes.Add ( ".htm", new ContentType ( "text/html" ) );
-			mimes.Add ( ".html", new ContentType ( "text/html" ) );
-			mimes.Add ( ".css", new ContentType ( "text/css" ) );
-			mimes.Add ( ".js", new ContentType ( "text/javascript" ) );
+			Mimes.Add ( ".htm", new ContentType ( "text/html" ) );
+			Mimes.Add ( ".html", new ContentType ( "text/html" ) );
+			Mimes.Add ( ".css", new ContentType ( "text/css" ) );
+			Mimes.Add ( ".js", new ContentType ( "text/javascript" ) );
 			
-			mimes.Add ( ".txt", new ContentType ( "text/plain" ) );
-			mimes.Add ( ".json", new ContentType ( "application/json" ) );
-			mimes.Add ( ".yaml", new ContentType ( "text/yaml" ) );
-			mimes.Add ( ".xml", new ContentType ( "text/xml" ) );
-			mimes.Add ( ".dtd", new ContentType ( "application/xml-dtd" ) );
-			mimes.Add ( ".xsl", new ContentType ( "application/xslt+xml" ) );
-			mimes.Add ( ".xslt", new ContentType ( "application/xslt+xml" ) );
-			mimes.Add ( ".xsd", new ContentType ( "application/xsd+xml" ) );
-			mimes.Add ( ".rss", new ContentType ( "application/rss+xml" ) );
-			mimes.Add ( ".pdf", new ContentType ( "application/pdf" ) );
-			mimes.Add ( ".md", new ContentType ( "text/x-markdown" ) );
-			mimes.Add ( ".xls", new ContentType ( "application/vnd.ms-excel" ) );
-			mimes.Add ( ".xlsx", new ContentType ( "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ) );
-			mimes.Add ( ".xltx", new ContentType ( "application/vnd.openxmlformats-officedocument.spreadsheetml.template" ) );
-			mimes.Add ( ".doc", new ContentType ( "application/msword" ) );
-			mimes.Add ( ".docx", new ContentType ( "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ) );
-			mimes.Add ( ".dotx", new ContentType ( "application/vnd.openxmlformats-officedocument.wordprocessingml.template" ) );
-			mimes.Add ( ".ppt", new ContentType ( "application/vnd.ms-powerpoint" ) );
-			mimes.Add ( ".pptx", new ContentType ( "application/vnd.openxmlformats-officedocument.presentationml.presentation" ) );
-			mimes.Add ( ".potx", new ContentType ( "application/vnd.openxmlformats-officedocument.presentationml.template" ) );
-			mimes.Add ( ".ppsx", new ContentType ( "application/vnd.openxmlformats-officedocument.presentationml.slideshow" ) );
+			Mimes.Add ( ".txt", new ContentType ( "text/plain" ) );
+			Mimes.Add ( ".json", new ContentType ( "application/json" ) );
+			Mimes.Add ( ".yaml", new ContentType ( "text/yaml" ) );
+			Mimes.Add ( ".xml", new ContentType ( "text/xml" ) );
+			Mimes.Add ( ".dtd", new ContentType ( "application/xml-dtd" ) );
+			Mimes.Add ( ".xsl", new ContentType ( "application/xslt+xml" ) );
+			Mimes.Add ( ".xslt", new ContentType ( "application/xslt+xml" ) );
+			Mimes.Add ( ".xsd", new ContentType ( "application/xsd+xml" ) );
+			Mimes.Add ( ".rss", new ContentType ( "application/rss+xml" ) );
+			Mimes.Add ( ".pdf", new ContentType ( "application/pdf" ) );
+			Mimes.Add ( ".md", new ContentType ( "text/x-markdown" ) );
+			Mimes.Add ( ".xls", new ContentType ( "application/vnd.ms-excel" ) );
+			Mimes.Add ( ".xlsx", new ContentType ( "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ) );
+			Mimes.Add ( ".xltx", new ContentType ( "application/vnd.openxmlformats-officedocument.spreadsheetml.template" ) );
+			Mimes.Add ( ".doc", new ContentType ( "application/msword" ) );
+			Mimes.Add ( ".docx", new ContentType ( "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ) );
+			Mimes.Add ( ".dotx", new ContentType ( "application/vnd.openxmlformats-officedocument.wordprocessingml.template" ) );
+			Mimes.Add ( ".ppt", new ContentType ( "application/vnd.ms-powerpoint" ) );
+			Mimes.Add ( ".pptx", new ContentType ( "application/vnd.openxmlformats-officedocument.presentationml.presentation" ) );
+			Mimes.Add ( ".potx", new ContentType ( "application/vnd.openxmlformats-officedocument.presentationml.template" ) );
+			Mimes.Add ( ".ppsx", new ContentType ( "application/vnd.openxmlformats-officedocument.presentationml.slideshow" ) );
 
-			mimes.Add ( ".jpg", new ContentType ( "image/jpeg" ) );
-			mimes.Add ( ".jpeg", new ContentType ( "image/jpeg" ) );
-			mimes.Add ( ".png", new ContentType ( "image/png" ) );
-			mimes.Add ( ".gif", new ContentType ( "image/gif" ) );
-			mimes.Add ( ".bmp", new ContentType ( "image/bmp" ) );
-			mimes.Add ( ".dib", new ContentType ( "image/bmp" ) );
-			mimes.Add ( ".tif", new ContentType ( "image/tiff" ) );
-			mimes.Add ( ".tiff", new ContentType ( "image/tiff" ) );
-			mimes.Add ( ".ai", new ContentType ( "application/postscript" ) );
-			mimes.Add ( ".svg", new ContentType ( "image/svg+xml" ) );
+			Mimes.Add ( ".jpg", new ContentType ( "image/jpeg" ) );
+			Mimes.Add ( ".jpeg", new ContentType ( "image/jpeg" ) );
+			Mimes.Add ( ".png", new ContentType ( "image/png" ) );
+			Mimes.Add ( ".gif", new ContentType ( "image/gif" ) );
+			Mimes.Add ( ".bmp", new ContentType ( "image/bmp" ) );
+			Mimes.Add ( ".dib", new ContentType ( "image/bmp" ) );
+			Mimes.Add ( ".tif", new ContentType ( "image/tiff" ) );
+			Mimes.Add ( ".tiff", new ContentType ( "image/tiff" ) );
+			Mimes.Add ( ".ai", new ContentType ( "application/postscript" ) );
+			Mimes.Add ( ".svg", new ContentType ( "image/svg+xml" ) );
 
-			mimes.Add ( ".zip", new ContentType ( "application/x-zip-comressed" ) );
-			mimes.Add ( ".7z", new ContentType ( "application/x-7z-comressed" ) );
-			mimes.Add ( ".rar", new ContentType ( "application/x-rar-compressed" ) );
-			mimes.Add ( ".lzh", new ContentType ( "application/x-lzh-archive" ) );
-			mimes.Add ( ".lzma", new ContentType ( "application/x-lzma-archive" ) );
-			mimes.Add ( ".tar", new ContentType ( "application/tar" ) );
-			mimes.Add ( ".bz", new ContentType ( "application/x-bzip" ) );
-			mimes.Add ( ".bz2", new ContentType ( "application/x-bzip2" ) );
-			mimes.Add ( ".gz", new ContentType ( "application/x-gzip" ) );
-			mimes.Add ( ".pkg", new ContentType ( "application/x-newton-compatible-pkg" ) );
+			Mimes.Add ( ".zip", new ContentType ( "application/x-zip-comressed" ) );
+			Mimes.Add ( ".7z", new ContentType ( "application/x-7z-comressed" ) );
+			Mimes.Add ( ".rar", new ContentType ( "application/x-rar-compressed" ) );
+			Mimes.Add ( ".lzh", new ContentType ( "application/x-lzh-archive" ) );
+			Mimes.Add ( ".lzma", new ContentType ( "application/x-lzma-archive" ) );
+			Mimes.Add ( ".tar", new ContentType ( "application/tar" ) );
+			Mimes.Add ( ".bz", new ContentType ( "application/x-bzip" ) );
+			Mimes.Add ( ".bz2", new ContentType ( "application/x-bzip2" ) );
+			Mimes.Add ( ".gz", new ContentType ( "application/x-gzip" ) );
+			Mimes.Add ( ".pkg", new ContentType ( "application/x-newton-compatible-pkg" ) );
 
-			mimes.Add ( ".mp3", new ContentType ( "audio/mpeg" ) );
-			mimes.Add ( ".wav", new ContentType ( "audio/wav" ) );
-			mimes.Add ( ".wave", new ContentType ( "audio/wav" ) );
-			mimes.Add ( ".ogg", new ContentType ( "audio/ogg" ) );
+			Mimes.Add ( ".mp3", new ContentType ( "audio/mpeg" ) );
+			Mimes.Add ( ".wav", new ContentType ( "audio/wav" ) );
+			Mimes.Add ( ".wave", new ContentType ( "audio/wav" ) );
+			Mimes.Add ( ".ogg", new ContentType ( "audio/ogg" ) );
 
-			mimes.Add ( ".avi", new ContentType ( "video/x-msvideo" ) );
-			mimes.Add ( ".mp4", new ContentType ( "video/mp4" ) );
-			mimes.Add ( ".m4v", new ContentType ( "video/x-m4v" ) );
-			mimes.Add ( ".asf", new ContentType ( "video/x-ms-asf" ) );
-			mimes.Add ( ".wmv", new ContentType ( "video/x-ms-wmv" ) );
-			mimes.Add ( ".mov", new ContentType ( "video/quicktime" ) );
-			mimes.Add ( ".mkv", new ContentType ( "video/x-matroska" ) );
-			mimes.Add ( ".webm", new ContentType ( "video/webm" ) );
+			Mimes.Add ( ".avi", new ContentType ( "video/x-msvideo" ) );
+			Mimes.Add ( ".mp4", new ContentType ( "video/mp4" ) );
+			Mimes.Add ( ".m4v", new ContentType ( "video/x-m4v" ) );
+			Mimes.Add ( ".asf", new ContentType ( "video/x-ms-asf" ) );
+			Mimes.Add ( ".wmv", new ContentType ( "video/x-ms-wmv" ) );
+			Mimes.Add ( ".mov", new ContentType ( "video/quicktime" ) );
+			Mimes.Add ( ".mkv", new ContentType ( "video/x-matroska" ) );
+			Mimes.Add ( ".webm", new ContentType ( "video/webm" ) );
 		}
 
 		public void Dispose ()

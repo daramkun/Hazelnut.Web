@@ -13,13 +13,23 @@ namespace Daramkun.Dweb
 		public HttpStatusCode Status { get; set; }
 		public long ContentLength
 		{
-			get { return ( long ) Fields [ "Content-Length" ]; }
-			set { if ( !Fields.ContainsKey ( "Content-Length" ) ) Fields.Add ( "Content-Length", value ); else Fields [ "Content-Length" ] = value; }
+			get { return ( long ) Fields [ HttpHeaderField.ContentLength ]; }
+			set
+			{
+				if ( !Fields.ContainsKey ( HttpHeaderField.ContentLength ) )
+					Fields.Add ( HttpHeaderField.ContentLength, value );
+				else Fields [ HttpHeaderField.ContentLength ] = value;
+			}
 		}
 		public ContentType ContentType
 		{
-			get { return Fields [ "Content-Type" ] as ContentType; }
-			set { if ( !Fields.ContainsKey ( "Content-Type" ) ) Fields.Add ( "Content-Type", value ); else Fields [ "Content-Type" ] = value; }
+			get { return Fields [ HttpHeaderField.ContentType ] as ContentType; }
+			set
+			{
+				if ( !Fields.ContainsKey ( HttpHeaderField.ContentType ) )
+					Fields.Add ( HttpHeaderField.ContentType, value );
+				else Fields [ HttpHeaderField.ContentType ] = value;
+			}
 		}
 
 		public Dictionary<string, object> Fields { get; private set; }
