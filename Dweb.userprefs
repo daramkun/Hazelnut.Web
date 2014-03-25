@@ -1,0 +1,16 @@
+﻿<Properties>
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" />
+  <MonoDevelop.Ide.Workbench ActiveDocument="Daramkun.Dweb/HttpAccept.cs">
+    <Files>
+      <File FileName="Daramkun.Dweb/HttpAccept.cs" Line="143" Column="76" />
+      <File FileName="Daramkun.Dweb/HttpRequestHeader.cs" Line="8" Column="1" />
+      <File FileName="Daramkun.Dweb/PluginArgument.cs" Line="13" Column="35" />
+      <File FileName="Daramkun.Dweb/HttpResponseHeader.cs" Line="36" Column="22" />
+      <File FileName="Daramkun.Dweb/HttpRequestMethod.cs" Line="16" Column="3" />
+    </Files>
+  </MonoDevelop.Ide.Workbench>
+  <MonoDevelop.Ide.DebuggingService.Breakpoints>
+    <BreakpointStore />
+  </MonoDevelop.Ide.DebuggingService.Breakpoints>
+  <MonoDevelop.Ide.DebuggingService.PinnedWatches />
+</Properties>

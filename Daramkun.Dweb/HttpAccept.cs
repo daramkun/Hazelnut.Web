@@ -8,6 +8,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Web;
 
+using FieldCollection = System.Collections.Generic.Dictionary<string, string>;
+
 namespace Daramkun.Dweb
 {
 	public sealed class HttpAccept : IDisposable
@@ -48,9 +50,9 @@ namespace Daramkun.Dweb
 				VirtualSite virtualSite = null;
 				try
 				{
-					if ( header.Fields.ContainsKey ( HttpRequestHeaderField.Host ) )
-						if ( server.VirtualSites.ContainsKey ( header.Fields [ HttpRequestHeaderField.Host ] as string ) )
-							virtualSite = server.VirtualSites [ header.Fields [ HttpRequestHeaderField.Host ] as string ];
+					if ( header.Fields.ContainsKey ( HttpHeaderField.Host ) )
+						if ( server.VirtualSites.ContainsKey ( header.Fields [ HttpHeaderField.Host ] as string ) )
+							virtualSite = server.VirtualSites [ header.Fields [ HttpHeaderField.Host ] as string ];
 					if ( virtualSite == null )
 						virtualSite = server.VirtualSites.First ().Value;
 				}
@@ -62,9 +64,9 @@ namespace Daramkun.Dweb
 					return;
 				}
 
-				if ( header.Fields.ContainsKey ( HttpRequestHeaderField.ContentLength ) )
+				if ( header.Fields.ContainsKey ( HttpHeaderField.ContentLength ) )
 				{
-					int contentLength = int.Parse ( header.Fields [ HttpRequestHeaderField.ContentLength ] as string );
+					int contentLength = int.Parse ( header.Fields [ HttpHeaderField.ContentLength ] as string );
 					if ( contentLength > virtualSite.MaximumPostSize )
 					{
 						byte [] temp = new byte [ 1024 ];
@@ -79,7 +81,7 @@ namespace Daramkun.Dweb
 					if ( contentLength > 0 )
 					{
 						// POST data
-						if ( header.Fields [ HttpRequestHeaderField.ContentType ] as string == "application/x-www-form-urlencoded" )
+						if ( header.Fields [ HttpHeaderField.ContentType ] as string == "application/x-www-form-urlencoded" )
 						{
 							// URL Encoded POST data
 							MemoryStream memoryStream = new MemoryStream ();
@@ -108,7 +110,7 @@ namespace Daramkun.Dweb
 						else
 						{
 							// Multipart POST data
-							ContentType contentType = new ContentType ( header.Fields [ HttpRequestHeaderField.ContentType ] as string );
+							ContentType contentType = new ContentType ( header.Fields [ HttpHeaderField.ContentType ] as string );
 							using ( NetworkStream networkStream = new NetworkStream ( socket, false ) )
 							{
 								try
@@ -128,7 +130,7 @@ namespace Daramkun.Dweb
 				if ( virtualSite.IsRedirect )
 				{
 					HttpResponseHeader responseHeader = new HttpResponseHeader ( HttpStatusCode.MultipleChoices );
-					responseHeader.Fields.Add ( HttpResponseHeaderField.Location, virtualSite.RootDirectory );
+					responseHeader.Fields.Add ( HttpHeaderField.Location, virtualSite.RootDirectory );
 					SendData ( responseHeader, null );
 				}
 				else
@@ -138,12 +140,14 @@ namespace Daramkun.Dweb
 			}, null );
 		}
 
-		private void ReadMultipartPOSTData ( BinaryReader reader, int contentLength, string boundary, Dictionary<string, string> dictionary )
+		private void ReadMultipartPOSTData ( BinaryReader reader, int contentLength, string boundary, FieldCollection dictionary )
 		{
 			bool partSeparatorMode = true, firstLooping = true;
 			Stream tempStream = null;
-			Dictionary<string, string> fields = new Dictionary<string, string> ();
+			FieldCollection fields = new FieldCollection ();
+			byte [] multipartData = new byte [] { ( byte ) '\r', ( byte ) '\n', ( byte ) '-', ( byte ) '-' };
 			reader.ReadBytes ( 2 );
+
 			while ( true )
 			{
 				if ( partSeparatorMode )
@@ -151,7 +155,7 @@ namespace Daramkun.Dweb
 					byte [] data = reader.ReadBytes ( boundary.Length );
 					if ( Encoding.UTF8.GetString ( data ) != boundary )
 					{
-						tempStream.Write ( new byte [] { ( byte ) '\r', ( byte ) '\n', ( byte ) '-', ( byte ) '-' }, 0, 4 );
+						tempStream.Write ( multipartData, 0, 4 );
 						tempStream.Write ( data, 0, data.Length );
 						partSeparatorMode = false;
 					}
@@ -171,7 +175,7 @@ namespace Daramkun.Dweb
 							fields.Clear ();
 							while ( ( key = ReadToColon ( reader ) ) != null )
 								fields.Add ( key, ReadToNextLine ( reader ).Trim () );
-							string filename = ReadFilename ( fields [ HttpResponseHeaderField.ContentDisposition ] );
+							string filename = ReadFilename ( fields [ HttpHeaderField.ContentDisposition ] );
 							if ( tempStream != null ) tempStream.Dispose ();
 							tempStream = ( filename == null ) ?
 								new MemoryStream () as Stream :
@@ -185,39 +189,57 @@ namespace Daramkun.Dweb
 				}
 				else
 				{
-					byte b = reader.ReadByte ();
-					if ( ( char ) b == '\r' )
+					byte b;
+					int multipartHeaderIndex = 0;
+					Queue<byte> queue = new Queue<byte> ();
+					while ( true )
 					{
-						byte [] tt = reader.ReadBytes ( 3 );
-						if ( Encoding.UTF8.GetString ( tt ) == "\n--" ) partSeparatorMode = true;
+						b = reader.ReadByte ();
+						if ( b == multipartData [ multipartHeaderIndex ] )
+						{
+							queue.Enqueue ( b );
+							++multipartHeaderIndex;
+							if ( multipartHeaderIndex == 4 )
+							{
+								partSeparatorMode = true;
+								queue.Clear ();
+								queue = null;
+							}
+						}
 						else
 						{
-							tempStream.WriteByte ( ( byte ) '\r' );
-							tempStream.Write ( tt, 0, 3 );
+							while ( queue.Count != 0 )
+									tempStream.WriteByte ( queue.Dequeue () );
+
+							if ( b == multipartData [ 0 ] )
+								queue.Enqueue ( b );
+							else
+								tempStream.WriteByte ( b );
+
+							multipartHeaderIndex = 0;
 						}
 					}
-					else tempStream.WriteByte ( b );
 				}
 				firstLooping = false;
 			}
 		}
 
-		private void AddToPOST ( Dictionary<string, string> dictionary, Dictionary<string, string> fields, MemoryStream tempStream )
+		private void AddToPOST ( FieldCollection dictionary, FieldCollection fields, MemoryStream tempStream )
 		{
-			string filename = ReadFilename ( fields [ HttpResponseHeaderField.ContentDisposition ] );
-			dictionary.Add ( ReadName ( fields [ HttpResponseHeaderField.ContentDisposition ] ), filename ?? Encoding.UTF8.GetString ( tempStream.ToArray () ) );
+			string filename = ReadFilename ( fields [ HttpHeaderField.ContentDisposition ] );
+			dictionary.Add ( ReadName ( fields [ HttpHeaderField.ContentDisposition ] ), filename ?? Encoding.UTF8.GetString ( tempStream.ToArray () ) );
 		}
 
 		private string ReadName ( string disposition )
 		{
-			Regex regex = new Regex ( "name=\"(([a-zA-Z0-9가-힣_]|-| )*)\"" );
+			Regex regex = new Regex ( "name=\"(.*)\"" );
 			Match match = regex.Match ( disposition );
 			return match.Groups [ 1 ].Value;
 		}
 
 		private string ReadFilename ( string disposition )
 		{
-			Regex regex = new Regex ( "filename=\"((.*)*)\"" );
+			Regex regex = new Regex ( "filename=\"(.*)\"" );
 			Match match = regex.Match ( disposition );
 			if ( match == null || match.Groups.Count == 1 ) return null;
 			return match.Groups [ 1 ].Value;	
@@ -302,7 +324,6 @@ namespace Daramkun.Dweb
 			// Cannot found file, apply index filename
 			if ( !File.Exists ( filename ) )
 			{
-				string temp = filename;
 				foreach ( string indexName in server.IndexNames )
 				{
 					if ( File.Exists ( filename + "\\" + indexName ) )
@@ -356,9 +377,9 @@ namespace Daramkun.Dweb
 				header.ContentLength = ( int ) stream.Length;
 			}
 
-			if ( header.Fields.ContainsKey ( HttpResponseHeaderField.Server ) )
-				header.Fields [ HttpResponseHeaderField.Server ] = server.ServerName;
-			else header.Fields.Add ( HttpResponseHeaderField.Server, server.ServerName );
+			if ( header.Fields.ContainsKey ( HttpHeaderField.Server ) )
+				header.Fields [ HttpHeaderField.Server ] = server.ServerName;
+			else header.Fields.Add ( HttpHeaderField.Server, server.ServerName );
 
 			byte [] headerData = Encoding.UTF8.GetBytes ( header.ToString () );
 			socket.Send ( headerData );

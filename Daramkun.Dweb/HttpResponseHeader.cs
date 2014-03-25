@@ -30,10 +30,10 @@ namespace Daramkun.Dweb
 			HttpVersion = new Version ( 1, 1 );
 			Status = status;
 			Fields = new Dictionary<string, object> ();
-			Fields.Add ( HttpResponseHeaderField.ContentLength, 0 );
-			Fields.Add ( HttpResponseHeaderField.Date, DateTime.UtcNow );
+			Fields.Add ( HttpHeaderField.ContentLength, 0 );
+			Fields.Add ( HttpHeaderField.Date, DateTime.UtcNow );
 			if ( server != null )
-				Fields.Add ( HttpResponseHeaderField.Server, server.ServerName );
+				Fields.Add ( HttpHeaderField.Server, server.ServerName );
 		}
 
 		public override string ToString ()

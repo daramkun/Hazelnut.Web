@@ -5,14 +5,16 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 
+using FieldCollection = System.Collections.Generic.Dictionary<string, string>;
+
 namespace Daramkun.Dweb
 {
 	public class HttpUrl
 	{
-		Dictionary<string, string> queryString = new Dictionary<string, string> ();
+		FieldCollection queryString = new FieldCollection ();
 
 		public string [] Path { get; set; }
-		public Dictionary<string, string> QueryString { get { return queryString; } }
+		public FieldCollection QueryString { get { return queryString; } }
 
 		public HttpUrl ( string path )
 		{

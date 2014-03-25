@@ -8,7 +8,6 @@ namespace Daramkun.Dweb
 {
 	public enum HttpRequestMethod
 	{
-		Unknown = -1,
 		HEAD,
 		GET,
 		POST,

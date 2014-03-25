@@ -70,7 +70,7 @@ namespace Daramkun.Dweb
 			statusPage = new Dictionary<HttpStatusCode, Stream> ();
 
 			TemporaryDirectory = Path.GetTempPath ();
-			IndexNames = new string [] { "index.html", "index.htm" };
+			IndexNames = new string [] { "index.html", "index.htm", "index.dhtml", "index.xhtml" };
 
 			Accepting ();
 		}

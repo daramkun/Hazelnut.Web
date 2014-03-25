@@ -26,7 +26,7 @@ namespace Daramkun.Dweb
 			ServerHost = serverHost;
 			IsRedirect = isRedirect;
 			RootDirectory = rootDir;
-			MaximumPostSize = 8388608;
+			MaximumPostSize = 8388608;								// 8.0MB
 			subDir = new Dictionary<string, string> ();
 			rewRule = new Dictionary<Regex, string> ();
 		}

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using FieldCollection = System.Collections.Generic.Dictionary<string, string>;
 
 namespace Daramkun.Dweb
 {
@@ -12,8 +13,8 @@ namespace Daramkun.Dweb
 		public HttpRequestMethod RequestMethod { get; set; }
 		public string QueryString { get; set; }
 		public Version HttpVersion { get; set; }
-		public Dictionary<string, object> Fields { get; private set; }
-		public Dictionary<string, string> PostData { get; private set; }
+		public FieldCollection Fields { get; private set; }
+		public FieldCollection PostData { get; private set; }
 
 		public HttpRequestHeader ( Stream stream )
 			: this ()
@@ -27,13 +28,13 @@ namespace Daramkun.Dweb
 			
 			// Read Header Fields
 			SkipToNextLine ( reader );
-			Fields = new Dictionary<string, object> ();
-
-			PostData = new Dictionary<string, string> ();
+			Fields = new FieldCollection ();
 
 			string key;
 			while ( ( key = ReadToColon ( reader ) ) != null )
 				Fields.Add ( key, ReadToNextLine ( reader ).Trim () );
+
+			PostData = new FieldCollection ();
 		}
 
 		#region Read From NetworkStream
@@ -77,8 +78,7 @@ namespace Daramkun.Dweb
 
 		private void SkipToNextLine ( BinaryReader reader )
 		{
-			char ch;
-			while ( ( ch = reader.ReadChar () ) != '\r' ) ;
+			while ( ( reader.ReadChar () ) != '\r' ) ;
 			reader.ReadChar ();
 		}
 		#endregion
