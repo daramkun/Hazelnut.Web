@@ -14,15 +14,13 @@ namespace Daramkun.Dweb
 {
 	public class HttpAccept : IDisposable
 	{
-		HttpServer server;
-		Socket socket;
-
-		public Socket Socket { get { return socket; } }
+		public HttpServer Server { get; private set; }
+		public Socket Socket { get; private set; }
 
 		public HttpAccept ( HttpServer server, Socket socket )
 		{
-			this.server = server;
-			this.socket = socket;
+			Server = server;
+			Socket = socket;
 
 			ReceiveRequest ();
 		}
@@ -33,8 +31,8 @@ namespace Daramkun.Dweb
 		{
 			if ( isDisposing )
 			{
-				socket.Disconnect ( false );
-				socket.Dispose ();
+				Socket.Disconnect ( false );
+				Socket.Dispose ();
 			}
 		}
 
@@ -46,32 +44,32 @@ namespace Daramkun.Dweb
 
 		public void ReceiveRequest ()
 		{
-			socket.BeginReceive ( new byte [ 0 ], 0, 0, SocketFlags.None, ( IAsyncResult ar ) =>
+			Socket.BeginReceive ( new byte [ 0 ], 0, 0, SocketFlags.None, ( IAsyncResult ar ) =>
 			{
 				try
 				{
-					socket.EndReceive ( ar );
+					Socket.EndReceive ( ar );
 				}
-				catch { server.SocketIsDead ( this ); return; }
+				catch { Server.SocketIsDead ( this ); return; }
 				HttpRequestHeader header = new HttpRequestHeader ();
 
-				using ( NetworkStream networkStream = new NetworkStream ( socket, false ) )
+				using ( NetworkStream networkStream = new NetworkStream ( Socket, false ) )
 				{
 					try { header = new HttpRequestHeader ( networkStream ); }
-					catch { server.WriteLog ( "Invalid Request." ); ReceiveRequest (); return; }
+					catch { Server.WriteLog ( "Invalid Request." ); ReceiveRequest (); return; }
 				}
 
-				server.WriteLog ( "V{0}, [{1}] {2}", header.HttpVersion, header.RequestMethod, header.QueryString );
+				Server.WriteLog ( "V{0}, [{1}] {2}", header.HttpVersion, header.RequestMethod, header.QueryString );
 
 				// Response start
 				VirtualSite virtualSite = null;
 				try
 				{
 					if ( header.Fields.ContainsKey ( HttpHeaderField.Host ) )
-						if ( server.VirtualSites.ContainsKey ( header.Fields [ HttpHeaderField.Host ] as string ) )
-							virtualSite = server.VirtualSites [ header.Fields [ HttpHeaderField.Host ] as string ];
+						if ( Server.VirtualSites.ContainsKey ( header.Fields [ HttpHeaderField.Host ] as string ) )
+							virtualSite = Server.VirtualSites [ header.Fields [ HttpHeaderField.Host ] as string ];
 					if ( virtualSite == null )
-						virtualSite = server.VirtualSites.First ().Value;
+						virtualSite = Server.VirtualSites.First ().Value;
 				}
 				catch
 				{
@@ -89,7 +87,7 @@ namespace Daramkun.Dweb
 						byte [] temp = new byte [ 1024 ];
 						int length = 0;
 						while ( length == contentLength )
-							length += socket.Receive ( temp, contentLength - length >= 1024 ? 1024 : contentLength - length, SocketFlags.None );
+							length += Socket.Receive ( temp, contentLength - length >= 1024 ? 1024 : contentLength - length, SocketFlags.None );
 						HttpResponseHeader responseHeader = new HttpResponseHeader ( HttpStatusCode.RequestEntityTooLarge );
 						SendData ( responseHeader, null );
 						ReceiveRequest ();
@@ -108,12 +106,12 @@ namespace Daramkun.Dweb
 							{
 								while ( length < contentLength )
 								{
-									int len = socket.Receive ( temp, 1024, SocketFlags.None );
+									int len = Socket.Receive ( temp, 1024, SocketFlags.None );
 									length += len;
 									memoryStream.Write ( temp, 0, len );
 								}
 							}
-							catch { server.SocketIsDead ( this ); return; }
+							catch { Server.SocketIsDead ( this ); return; }
 
 							string postString = HttpUtility.UrlDecode ( memoryStream.ToArray (), 0, ( int ) memoryStream.Length, Encoding.UTF8 );
 							string [] tt = postString.Split ( '&' );
@@ -128,13 +126,13 @@ namespace Daramkun.Dweb
 						{
 							// Multipart POST data
 							ContentType contentType = new ContentType ( header.Fields [ HttpHeaderField.ContentType ] as string );
-							using ( NetworkStream networkStream = new NetworkStream ( socket, false ) )
+							using ( NetworkStream networkStream = new NetworkStream ( Socket, false ) )
 							{
 								try
 								{
 									ReadMultipartPOSTData ( new BinaryReader ( networkStream ), contentLength, contentType.Boundary, header.PostData );
 								}
-								catch { server.SocketIsDead ( this ); return; }
+								catch { Server.SocketIsDead ( this ); return; }
 							}
 						}
 					}
@@ -197,7 +195,7 @@ namespace Daramkun.Dweb
 							tempStream = ( filename == null ) ?
 								new MemoryStream () as Stream :
 								new FileStream (
-									Path.Combine ( server.TemporaryDirectory,
+									Path.Combine ( Server.TemporaryDirectory,
 									Convert.ToBase64String ( Encoding.UTF8.GetBytes ( filename ) ) + Path.GetExtension ( filename )
 								), FileMode.Create ) as Stream;
 							partSeparatorMode = false;
@@ -284,7 +282,7 @@ namespace Daramkun.Dweb
 			// Cannot found file, apply index filename
 			if ( !File.Exists ( filename ) )
 			{
-				foreach ( string indexName in server.IndexNames )
+				foreach ( string indexName in Server.IndexNames )
 				{
 					if ( File.Exists ( filename + "\\" + indexName ) )
 					{
@@ -299,8 +297,8 @@ namespace Daramkun.Dweb
 			ContentType fileContentType = null;
 
 			// Find Content-Type
-			if ( server.Mimes.ContainsKey ( Path.GetExtension ( filename ) ) )
-				fileContentType = server.Mimes [ Path.GetExtension ( filename ) ];
+			if ( Server.Mimes.ContainsKey ( Path.GetExtension ( filename ) ) )
+				fileContentType = Server.Mimes [ Path.GetExtension ( filename ) ];
 			else fileContentType = new ContentType ( "application/octet-stream" );
 			// Find Plugin for send data
 			bool isPluginProceed = false;
@@ -314,14 +312,14 @@ namespace Daramkun.Dweb
 				OriginalFilename = filename,
 				RequestFields = header.Fields
 			};
-			foreach ( IPlugin plugin in server.Plugins )
+			foreach ( IPlugin plugin in Server.Plugins )
 			{
 				if ( isPluginProceed = plugin.Run ( args, out responseHeader, out responseStream ) )
 					break;
 			}
 			// If Cannot found Plugin, Processing Original plugin
 			if ( !isPluginProceed )
-				server.OriginalPlugin.Run ( args, out responseHeader, out responseStream );
+				Server.OriginalPlugin.Run ( args, out responseHeader, out responseStream );
 
 			// Send to client
 			SendData ( responseHeader, responseStream );
@@ -329,26 +327,26 @@ namespace Daramkun.Dweb
 
 		private void SendData ( HttpResponseHeader header, Stream stream )
 		{
-			if ( stream == null && server.StatusPage.ContainsKey ( header.Status ) )
+			if ( stream == null && Server.StatusPage.ContainsKey ( header.Status ) )
 			{
-				stream = server.StatusPage [ header.Status ];
+				stream = Server.StatusPage [ header.Status ];
 				stream.Position = 0;
 				header.ContentType = new ContentType ( "text/html" );
 				header.ContentLength = ( int ) stream.Length;
 			}
 
 			if ( header.Fields.ContainsKey ( HttpHeaderField.Server ) )
-				header.Fields [ HttpHeaderField.Server ] = server.ServerName;
-			else header.Fields.Add ( HttpHeaderField.Server, server.ServerName );
+				header.Fields [ HttpHeaderField.Server ] = Server.ServerName;
+			else header.Fields.Add ( HttpHeaderField.Server, Server.ServerName );
 
 			byte [] headerData = Encoding.UTF8.GetBytes ( header.ToString () );
-			socket.Send ( headerData );
+			Socket.Send ( headerData );
 			if ( stream != null )
 			{
 				byte [] data = new byte [ 1024 ];
 				while ( stream.Position != stream.Length )
 				{
-					socket.Send ( data, stream.Read ( data, 0, data.Length ), SocketFlags.None );
+					Socket.Send ( data, stream.Read ( data, 0, data.Length ), SocketFlags.None );
 				}
 				stream.Dispose ();
 			}
