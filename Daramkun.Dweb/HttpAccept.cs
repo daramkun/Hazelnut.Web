@@ -66,12 +66,16 @@ namespace Daramkun.Dweb
 					Socket.EndReceive ( ar );
 				}
 				catch { Server.SocketIsDead ( this ); return; }
-				HttpRequestHeader header = new HttpRequestHeader ();
+				HttpRequestHeader header;// = new HttpRequestHeader ();
 
 				try
 				{
 					header = new HttpRequestHeader ( networkStream );
-					Server.WriteLog ( "V{0}, [{1}][{2}] {3}", header.HttpVersion, header.RequestMethod, header.Fields [ HttpHeaderField.Host ], header.QueryString );
+					Server.WriteLog ( "V{0}, [{1}][{2}] {3}",
+						header.HttpVersion,
+						header.RequestMethod,
+						header.Fields.ContainsKey ( HttpHeaderField.Host ) ? header.Fields [ HttpHeaderField.Host ] : "",
+						header.QueryString );
 
 					// Response start
 					VirtualSite virtualSite = null;
