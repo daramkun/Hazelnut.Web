@@ -24,7 +24,7 @@ namespace Daramkun.Dweb
 		OriginalPlugin originalPlugin;
 
 		public string ServerName { get; set; }
-		public X509Certificate X509 { get; set; }
+		public X509Certificate2 X509 { get; private set; }
 
 		public List<IPlugin> Plugins { get; private set; }
 		public IPlugin OriginalPlugin { get { return originalPlugin; } }
@@ -48,7 +48,7 @@ namespace Daramkun.Dweb
 			}
 		}
 
-		public HttpServer ( IPEndPoint endPoint, int backlog = 5, TextWriter logStream = null )
+		public HttpServer ( IPEndPoint endPoint, int backlog = 5, X509Certificate2 x509Cert = null, TextWriter logStream = null )
 		{
 			ServerName = string.Format ( "Daramkun's Dweb - the Lightweight HTTP Server/{0}", Assembly.Load ( "Daramkun.Dweb" ).GetName ().Version );
 
@@ -72,6 +72,8 @@ namespace Daramkun.Dweb
 
 			TemporaryDirectory = Path.GetTempPath ();
 			IndexNames = new List<string> ( new string [] { "index.html", "index.htm", "index.dhtml", "index.xhtml" } );
+
+			X509 = x509Cert;
 
 			Accepting ();
 		}

@@ -15,6 +15,8 @@ namespace Daramkun.Dweb
 {
 	public class HttpAccept : IDisposable
 	{
+		Stream networkStream;
+		
 		public HttpServer Server { get; private set; }
 		public Socket Socket { get; private set; }
 
@@ -22,6 +24,17 @@ namespace Daramkun.Dweb
 		{
 			Server = server;
 			Socket = socket;
+
+			networkStream = new NetworkStream ( Socket, false );
+			if ( Server.X509 != null )
+			{
+				networkStream = new SslStream ( networkStream );
+				try
+				{
+					( networkStream as SslStream ).AuthenticateAsServer ( Server.X509 );
+				}
+				catch { Server.SocketIsDead ( this ); return; }
+			}
 
 			ReceiveRequest ();
 		}
@@ -32,6 +45,7 @@ namespace Daramkun.Dweb
 		{
 			if ( isDisposing )
 			{
+				networkStream.Dispose ();
 				Socket.Disconnect ( false );
 				Socket.Dispose ();
 			}
@@ -54,93 +68,84 @@ namespace Daramkun.Dweb
 				catch { Server.SocketIsDead ( this ); return; }
 				HttpRequestHeader header = new HttpRequestHeader ();
 
-				Stream networkStream = new NetworkStream ( Socket, false );
-				if ( Server.X509 != null )
+				try
 				{
-					networkStream = new SslStream ( networkStream );
-					( networkStream as SslStream ).AuthenticateAsServer ( Server.X509 );
-				}
-				using ( networkStream )
-				{
-					try
+					header = new HttpRequestHeader ( networkStream );
+					Server.WriteLog ( "V{0}, [{1}][{2}] {3}", header.HttpVersion, header.RequestMethod, header.Fields [ HttpHeaderField.Host ], header.QueryString );
+
+					// Response start
+					VirtualSite virtualSite = null;
+
+					if ( header.Fields.ContainsKey ( HttpHeaderField.Host ) )
+						if ( Server.VirtualSites.ContainsKey ( header.Fields [ HttpHeaderField.Host ] as string ) )
+							virtualSite = Server.VirtualSites [ header.Fields [ HttpHeaderField.Host ] as string ];
+					if ( virtualSite == null )
+						virtualSite = Server.VirtualSites.First ().Value;
+
+					if ( header.Fields.ContainsKey ( HttpHeaderField.ContentLength ) )
 					{
-						header = new HttpRequestHeader ( networkStream );
-						Server.WriteLog ( "V{0}, [{1}][{2}] {3}", header.HttpVersion, header.RequestMethod, header.Fields [ HttpHeaderField.Host ], header.QueryString );
-
-						// Response start
-						VirtualSite virtualSite = null;
-
-						if ( header.Fields.ContainsKey ( HttpHeaderField.Host ) )
-							if ( Server.VirtualSites.ContainsKey ( header.Fields [ HttpHeaderField.Host ] as string ) )
-								virtualSite = Server.VirtualSites [ header.Fields [ HttpHeaderField.Host ] as string ];
-						if ( virtualSite == null )
-							virtualSite = Server.VirtualSites.First ().Value;
-
-						if ( header.Fields.ContainsKey ( HttpHeaderField.ContentLength ) )
+						int contentLength = int.Parse ( header.Fields [ HttpHeaderField.ContentLength ] as string );
+						if ( contentLength > virtualSite.MaximumPostSize )
 						{
-							int contentLength = int.Parse ( header.Fields [ HttpHeaderField.ContentLength ] as string );
-							if ( contentLength > virtualSite.MaximumPostSize )
+							byte [] temp = new byte [ 1024 ];
+							int length = 0;
+							while ( length == contentLength )
+								length += Socket.Receive ( temp, contentLength - length >= 1024 ? 1024 : contentLength - length, SocketFlags.None );
+							HttpResponseHeader responseHeader = new HttpResponseHeader ( HttpStatusCode.RequestEntityTooLarge );
+							SendData ( responseHeader, null );
+							ReceiveRequest ();
+							return;
+						}
+						if ( contentLength > 0 )
+						{
+							// POST data
+							if ( header.Fields [ HttpHeaderField.ContentType ] as string == "application/x-www-form-urlencoded" )
 							{
+								// URL Encoded POST data
+								MemoryStream memoryStream = new MemoryStream ();
 								byte [] temp = new byte [ 1024 ];
 								int length = 0;
-								while ( length == contentLength )
-									length += Socket.Receive ( temp, contentLength - length >= 1024 ? 1024 : contentLength - length, SocketFlags.None );
-								HttpResponseHeader responseHeader = new HttpResponseHeader ( HttpStatusCode.RequestEntityTooLarge );
-								SendData ( responseHeader, null );
-								ReceiveRequest ();
-								return;
+								while ( length < contentLength )
+								{
+									int len = Socket.Receive ( temp, 1024, SocketFlags.None );
+									length += len;
+									memoryStream.Write ( temp, 0, len );
+								}
+
+								string postString = HttpUtility.UrlDecode ( memoryStream.ToArray (), 0, ( int ) memoryStream.Length, Encoding.UTF8 );
+								string [] tt = postString.Split ( '&' );
+								tt = tt [ 1 ].Split ( '&' );
+								foreach ( string s in tt )
+								{
+									string [] temp2 = s.Split ( '=' );
+									header.PostData.Add ( temp2 [ 0 ], ( temp2.Length == 2 ) ? HttpUtility.UrlDecode ( temp2 [ 1 ] ) : null );
+								}
 							}
-							if ( contentLength > 0 )
+							else
 							{
-								// POST data
-								if ( header.Fields [ HttpHeaderField.ContentType ] as string == "application/x-www-form-urlencoded" )
-								{
-									// URL Encoded POST data
-									MemoryStream memoryStream = new MemoryStream ();
-									byte [] temp = new byte [ 1024 ];
-									int length = 0;
-									while ( length < contentLength )
-									{
-										int len = Socket.Receive ( temp, 1024, SocketFlags.None );
-										length += len;
-										memoryStream.Write ( temp, 0, len );
-									}
-
-									string postString = HttpUtility.UrlDecode ( memoryStream.ToArray (), 0, ( int ) memoryStream.Length, Encoding.UTF8 );
-									string [] tt = postString.Split ( '&' );
-									tt = tt [ 1 ].Split ( '&' );
-									foreach ( string s in tt )
-									{
-										string [] temp2 = s.Split ( '=' );
-										header.PostData.Add ( temp2 [ 0 ], ( temp2.Length == 2 ) ? HttpUtility.UrlDecode ( temp2 [ 1 ] ) : null );
-									}
-								}
-								else
-								{
-									// Multipart POST data
-									ContentType contentType = new ContentType ( header.Fields [ HttpHeaderField.ContentType ] as string );
-									ReadMultipartPOSTData ( new BinaryReader ( networkStream ), contentLength, contentType.Boundary, header.PostData );
-								}
+								// Multipart POST data
+								ContentType contentType = new ContentType ( header.Fields [ HttpHeaderField.ContentType ] as string );
+								ReadMultipartPOSTData ( new BinaryReader ( networkStream ), contentLength, contentType.Boundary, header.PostData );
 							}
-						}
-
-						// Next data receive
-						ReceiveRequest ();
-
-						// If is redirect host then send the redirection response
-						if ( virtualSite.IsRedirect )
-						{
-							HttpResponseHeader responseHeader = new HttpResponseHeader ( HttpStatusCode.MultipleChoices );
-							responseHeader.Fields.Add ( HttpHeaderField.Location, virtualSite.RootDirectory );
-							SendData ( responseHeader, null );
-						}
-						else
-						{
-							Response ( header, virtualSite );
 						}
 					}
-					catch { Server.SocketIsDead ( this ); return; }
+
+					// Next data receive
+					ReceiveRequest ();
+
+					// If is redirect host then send the redirection response
+					if ( virtualSite.IsRedirect )
+					{
+						HttpResponseHeader responseHeader = new HttpResponseHeader ( HttpStatusCode.MultipleChoices );
+						responseHeader.Fields.Add ( HttpHeaderField.Location, virtualSite.RootDirectory );
+						SendData ( responseHeader, null );
+					}
+					else
+					{
+						Response ( header, virtualSite );
+					}
 				}
+				catch { Server.SocketIsDead ( this ); return; }
 			}, null );
 		}
 
