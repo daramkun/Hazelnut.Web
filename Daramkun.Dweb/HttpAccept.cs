@@ -319,16 +319,19 @@ namespace Daramkun.Dweb
 			else header.Fields.Add ( HttpHeaderField.Server, Server.ServerName );
 
 			byte [] headerData = Encoding.UTF8.GetBytes ( header.ToString () );
-			Socket.Send ( headerData );
+			networkStream.Write ( headerData, 0, headerData.Length );
 			if ( stream != null )
 			{
 				byte [] data = new byte [ 1024 ];
 				while ( stream.Position != stream.Length )
 				{
-					Socket.Send ( data, stream.Read ( data, 0, data.Length ), SocketFlags.None );
+					int len = stream.Read ( data, 0, data.Length );
+					networkStream.Write ( data, 0, len );
 				}
 				stream.Dispose ();
 			}
+
+			networkStream.Flush ();
 		}
 	}
 }

@@ -106,9 +106,9 @@ namespace Daramkun.Dweb
 			listenSocket.BeginAccept ( ( IAsyncResult ar ) =>
 			{
 				Socket socket = listenSocket.EndAccept ( ar );
+				WriteLog ( "Accepted: {0}", socket.RemoteEndPoint );
 				HttpAccept accept = new HttpAccept ( this, socket );
 				clients.Add ( socket, accept );
-				WriteLog ( "Accepted: {0}", accept.Socket.RemoteEndPoint );
 				Accepting ();
 			}, null );
 		}
