@@ -9,6 +9,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Web;
+using Daramkun.Dweb.VirtualHosts;
 using FieldCollection = System.Collections.Generic.Dictionary<string, string>;
 
 namespace Daramkun.Dweb
@@ -25,7 +26,7 @@ namespace Daramkun.Dweb
 			Server = server;
 			Socket = socket;
 
-			networkStream = new NetworkStream ( Socket, false );
+			networkStream = new NetworkStream ( Socket );
 			if ( Server.X509 != null )
 			{
 				networkStream = new SslStream ( networkStream );
@@ -78,18 +79,18 @@ namespace Daramkun.Dweb
 						header.QueryString );
 
 					// Response start
-					VirtualSite virtualSite = null;
+					VirtualHost virtualHost = null;
 
 					if ( header.Fields.ContainsKey ( HttpHeaderField.Host ) )
 						if ( Server.VirtualSites.ContainsKey ( header.Fields [ HttpHeaderField.Host ] as string ) )
-							virtualSite = Server.VirtualSites [ header.Fields [ HttpHeaderField.Host ] as string ];
-					if ( virtualSite == null )
-						virtualSite = Server.VirtualSites.First ().Value;
+							virtualHost = Server.VirtualSites [ header.Fields [ HttpHeaderField.Host ] as string ];
+					if ( virtualHost == null )
+						virtualHost = Server.VirtualSites.First ().Value;
 
 					if ( header.Fields.ContainsKey ( HttpHeaderField.ContentLength ) )
 					{
 						int contentLength = int.Parse ( header.Fields [ HttpHeaderField.ContentLength ] as string );
-						if ( contentLength > virtualSite.MaximumPostSize )
+						if ( contentLength > virtualHost.MaximumPostSize )
 						{
 							byte [] temp = new byte [ 1024 ];
 							int length = 0;
@@ -138,15 +139,15 @@ namespace Daramkun.Dweb
 					ReceiveRequest ();
 
 					// If is redirect host then send the redirection response
-					if ( virtualSite.IsRedirect )
+					if ( virtualHost is RedirectVirtualHost )
 					{
 						HttpResponseHeader responseHeader = new HttpResponseHeader ( HttpStatusCode.MultipleChoices );
-						responseHeader.Fields.Add ( HttpHeaderField.Location, virtualSite.RootDirectory );
+						responseHeader.Fields.Add ( HttpHeaderField.Location, ( virtualHost as RedirectVirtualHost ).Redirect );
 						SendData ( responseHeader, null );
 					}
 					else
 					{
-						Response ( header, virtualSite );
+						Response ( header, virtualHost as SiteVirtualHost );
 					}
 				}
 				catch { Server.SocketIsDead ( this ); return; }
@@ -229,10 +230,10 @@ namespace Daramkun.Dweb
 			dictionary.Add ( _Utility.ReadName ( fields [ HttpHeaderField.ContentDisposition ] ), filename ?? Encoding.UTF8.GetString ( tempStream.ToArray () ) );
 		}
 
-		private void Response ( HttpRequestHeader header, VirtualSite virtualSite )
+		private void Response ( HttpRequestHeader header, SiteVirtualHost virtualHost )
 		{
 			// Rewrite url
-			foreach ( KeyValuePair<Regex, string> k in virtualSite.RewriteRules )
+			foreach ( KeyValuePair<Regex, string> k in virtualHost.RewriteRules )
 			{
 				if ( k.Key.IsMatch ( header.QueryString.ToString (), 0 ) )
 				{
@@ -247,7 +248,7 @@ namespace Daramkun.Dweb
 			if ( header.QueryString.Path.Length > 2 )
 			{
 				// Find sub directory
-				foreach ( KeyValuePair<string, string> k in virtualSite.SubDirectory )
+				foreach ( KeyValuePair<string, string> k in virtualHost.SubDirectory )
 				{
 					// If found sub directory, apply sub directory
 					if ( header.QueryString.Path [ 1 ] == k.Key )
@@ -260,7 +261,7 @@ namespace Daramkun.Dweb
 			}
 			// If can't found sub directory, apply root directory
 			if ( !subDirectoried )
-				filename = _Utility.GetFilename ( virtualSite.RootDirectory, header.QueryString, 1 );
+				filename = _Utility.GetFilename ( virtualHost.RootDirectory, header.QueryString, 1 );
 
 			// Cannot found file, apply index filename
 			if ( !File.Exists ( filename ) )

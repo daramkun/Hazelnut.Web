@@ -54,8 +54,10 @@
     <Compile Include="PluginArgument.cs" />
     <Compile Include="Plugins\OriginalPlugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="VirtualSite.cs" />
+    <Compile Include="VirtualHost.cs" />
     <Compile Include="HttpHeaderField.cs" />
+    <Compile Include="VirtualHosts\RedirectVirtualHost.cs" />
+    <Compile Include="VirtualHosts\SiteVirtualHost.cs" />
     <Compile Include="_Utility.cs" />
   </ItemGroup>
   <ItemGroup>

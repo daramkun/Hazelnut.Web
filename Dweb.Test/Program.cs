@@ -7,6 +7,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Daramkun.Dweb;
+using Daramkun.Dweb.VirtualHosts;
 
 namespace Dweb.Test
 {
@@ -16,11 +17,11 @@ namespace Dweb.Test
 		{
 			HttpServer server = new HttpServer ( new IPEndPoint ( IPAddress.Any, 80 ), 5, null, Console.Out );
 			server.AddDefaultMimes ();
-			server.VirtualSites.Add ( "*", new VirtualSite ( "*", @"E:\Web", false ) );
+			server.VirtualSites.Add ( "*", new SiteVirtualHost ( "*", @"E:\Web" ) );
 
 			HttpServer sslServer = new HttpServer ( new IPEndPoint ( IPAddress.Any, 443 ), 5, new X509Certificate2 ( @"E:\test.pfx", "eternity" ), Console.Out );
 			sslServer.AddDefaultMimes ();
-			sslServer.VirtualSites.Add ( "*", new VirtualSite ( "*", @"E:\Web", false ) );
+			sslServer.VirtualSites.Add ( "*", new SiteVirtualHost ( "*", @"E:\Web" ) );
 
 
 			while ( server.IsServerAlive ) ;

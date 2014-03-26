@@ -30,7 +30,7 @@ namespace Daramkun.Dweb
 		public IPlugin OriginalPlugin { get { return originalPlugin; } }
 
 		public Dictionary<string, ContentType> Mimes { get; private set; }
-		public Dictionary<string, VirtualSite> VirtualSites { get; private set; }
+		public Dictionary<string, VirtualHost> VirtualSites { get; private set; }
 		public Dictionary<HttpStatusCode, Stream> StatusPage { get; private set; }
 
 		public TextWriter LogStream { get; set; }
@@ -61,7 +61,7 @@ namespace Daramkun.Dweb
 			WriteLog ( "Initialized: {0}", endPoint );
 
 			Mimes = new Dictionary<string, ContentType> ();
-			VirtualSites = new Dictionary<string, VirtualSite> ();
+			VirtualSites = new Dictionary<string, VirtualHost> ();
 			Plugins = new List<IPlugin> ();
 			originalPlugin = new OriginalPlugin ();
 
