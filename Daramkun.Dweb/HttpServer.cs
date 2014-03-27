@@ -19,16 +19,17 @@ namespace Daramkun.Dweb
 	{
 		Socket listenSocket;
 		List<Socket> sockets;
-		Dictionary<Socket, HttpAccept> clients;
 
 		OriginalPlugin originalPlugin;
 
 		public string ServerName { get; set; }
+		public IPEndPoint EndPoint { get; private set; }
 		public X509Certificate2 X509 { get; private set; }
 
 		public List<IPlugin> Plugins { get; private set; }
 		public IPlugin OriginalPlugin { get { return originalPlugin; } }
 
+		public Dictionary<Socket, HttpAccept> Clients { get; private set; }
 		public Dictionary<string, ContentType> Mimes { get; private set; }
 		public Dictionary<string, VirtualHost> VirtualSites { get; private set; }
 		public Dictionary<HttpStatusCode, Stream> StatusPage { get; private set; }
@@ -55,7 +56,7 @@ namespace Daramkun.Dweb
 			LogStream = logStream;
 
 			listenSocket = new Socket ( endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp );
-			listenSocket.Bind ( endPoint );
+			listenSocket.Bind ( EndPoint = endPoint );
 			listenSocket.Listen ( backlog );
 
 			WriteLog ( "Initialized: {0}", endPoint );
@@ -66,7 +67,7 @@ namespace Daramkun.Dweb
 			originalPlugin = new OriginalPlugin ();
 
 			sockets = new List<Socket> ();
-			clients = new Dictionary<Socket, HttpAccept> ();
+			Clients = new Dictionary<Socket, HttpAccept> ();
 
 			StatusPage = new Dictionary<HttpStatusCode, Stream> ();
 
@@ -84,9 +85,9 @@ namespace Daramkun.Dweb
 		{
 			if ( isDisposing )
 			{
-				foreach ( KeyValuePair<Socket, HttpAccept> accept in clients )
+				foreach ( KeyValuePair<Socket, HttpAccept> accept in Clients )
 					accept.Value.Dispose ();
-				clients.Clear ();
+				Clients.Clear ();
 				sockets.Clear ();
 				listenSocket.Disconnect ( false );
 				listenSocket.Dispose ();
@@ -108,16 +109,16 @@ namespace Daramkun.Dweb
 				Socket socket = listenSocket.EndAccept ( ar );
 				WriteLog ( "Accepted: {0}", socket.RemoteEndPoint );
 				HttpAccept accept = new HttpAccept ( this, socket );
-				clients.Add ( socket, accept );
+				Clients.Add ( socket, accept );
 				Accepting ();
 			}, null );
 		}
 
 		public void SocketIsDead ( HttpAccept accept )
 		{
-			lock ( clients )
+			lock ( Clients )
 			{
-				clients.Remove ( accept.Socket );
+				Clients.Remove ( accept.Socket );
 				sockets.Remove ( accept.Socket );
 			}
 			accept.Dispose ();

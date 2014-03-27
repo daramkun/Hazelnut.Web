@@ -23,8 +23,16 @@ namespace Dweb.Test
 			sslServer.AddDefaultMimes ();
 			sslServer.VirtualSites.Add ( "*", new SiteVirtualHost ( "*", @"E:\Web" ) );
 
+			HttpServer proxyServer = new HttpServer ( new IPEndPoint ( IPAddress.Any, 8080 ), 5, null, Console.Out );
+			proxyServer.VirtualSites.Add ( "*", new ProxyVirtualHost ( "*", @"http://www.grow.or.kr" ) );
 
-			while ( server.IsServerAlive ) ;
+			while ( server.IsServerAlive )
+			{
+				Console.ReadLine ();
+				Console.WriteLine ( server.Clients.Count );
+				Console.WriteLine ( sslServer.Clients.Count );
+				Console.WriteLine ( proxyServer.Clients.Count );
+			}
 		}
 	}
 }

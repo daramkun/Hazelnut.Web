@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Mime;
 using System.Net.Security;
 using System.Net.Sockets;
@@ -17,6 +18,8 @@ namespace Daramkun.Dweb
 	public class HttpAccept : IDisposable
 	{
 		Stream networkStream;
+		VirtualHost virtualHost;
+		Stream proxyStream;
 		
 		public HttpServer Server { get; private set; }
 		public Socket Socket { get; private set; }
@@ -46,9 +49,14 @@ namespace Daramkun.Dweb
 		{
 			if ( isDisposing )
 			{
+				if ( proxyStream != null )
+					proxyStream.Dispose ();
 				networkStream.Dispose ();
-				Socket.Disconnect ( false );
-				Socket.Dispose ();
+				try
+				{
+					Socket.Disconnect ( false );
+				}
+				catch { }
 			}
 		}
 
@@ -71,22 +79,114 @@ namespace Daramkun.Dweb
 
 				try
 				{
+					#region Receive Request Header
 					header = new HttpRequestHeader ( networkStream );
 					Server.WriteLog ( "V{0}, [{1}][{2}] {3}",
 						header.HttpVersion,
 						header.RequestMethod,
 						header.Fields.ContainsKey ( HttpHeaderField.Host ) ? header.Fields [ HttpHeaderField.Host ] : "",
 						header.QueryString );
+					#endregion
 
-					// Response start
-					VirtualHost virtualHost = null;
-
-					if ( header.Fields.ContainsKey ( HttpHeaderField.Host ) )
-						if ( Server.VirtualSites.ContainsKey ( header.Fields [ HttpHeaderField.Host ] as string ) )
-							virtualHost = Server.VirtualSites [ header.Fields [ HttpHeaderField.Host ] as string ];
+					#region Find Virtual Host
+					// Find Virtual Host
 					if ( virtualHost == null )
-						virtualHost = Server.VirtualSites.First ().Value;
+					{
+						if ( header.Fields.ContainsKey ( HttpHeaderField.Host ) )
+							if ( Server.VirtualSites.ContainsKey ( header.Fields [ HttpHeaderField.Host.Split ( ':' ) [ 0 ] ] as string ) )
+								virtualHost = Server.VirtualSites [ header.Fields [ HttpHeaderField.Host.Split ( ':' ) [ 0 ] ] as string ];
+						if ( virtualHost == null )
+							virtualHost = Server.VirtualSites.First ().Value;
+					}
+					#endregion
 
+					#region Proxy Process
+					// If Virtual Host is Proxy Host, Processing the Proxy process.
+					if ( virtualHost is ProxyVirtualHost )
+					{
+						Uri uri = new Uri ( ( virtualHost as ProxyVirtualHost ).ProxyAddress );
+						if ( proxyStream == null )
+						{
+							IPEndPoint proxyEndPoint = null;
+							
+							foreach ( IPAddress address in Dns.GetHostAddresses ( uri.DnsSafeHost ) )
+							{
+								proxyEndPoint = new IPEndPoint ( address, uri.Port );
+								break;
+							}
+
+							if ( proxyEndPoint == null )
+								throw new Exception ();
+
+							Socket proxySocket = new Socket ( proxyEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp );
+							proxySocket.Connect ( proxyEndPoint );
+							proxyStream = new NetworkStream ( proxySocket );
+							if ( uri.Scheme == "https" )
+							{
+								proxyStream = new SslStream ( proxyStream );
+								( proxyStream as SslStream ).AuthenticateAsClient ( ( virtualHost as ProxyVirtualHost ).ProxyAddress );
+							}
+						}
+
+						if ( header.Fields.ContainsKey ( HttpHeaderField.Host ) )
+							header.Fields [ HttpHeaderField.Host ] = uri.DnsSafeHost;
+						
+						byte [] headerBytes = Encoding.UTF8.GetBytes ( header.ToString () );
+						byte [] temp = new byte [ 1024 ];
+						int contentLength, length;
+
+						proxyStream.Write ( headerBytes, 0, headerBytes.Length );
+						if ( header.Fields.ContainsKey ( HttpHeaderField.ContentLength ) )
+						{
+							contentLength = int.Parse ( header.Fields [ HttpHeaderField.ContentLength ] as string );
+							length = 0;
+							while ( length != contentLength )
+							{
+								int len = networkStream.Read ( temp, 0, 1024 );
+								length += len;
+								proxyStream.Write ( temp, 0, len );
+							}
+						}
+
+						HttpResponseHeader resHeader = new HttpResponseHeader ( proxyStream );
+						headerBytes = Encoding.UTF8.GetBytes ( resHeader.ToString () );
+						networkStream.Write ( headerBytes, 0, headerBytes.Length );
+
+						if ( resHeader.Fields.ContainsKey ( HttpHeaderField.ContentLength ) )
+							contentLength = int.Parse ( resHeader.Fields [ HttpHeaderField.ContentLength ] as string );
+						else contentLength = -1;
+						length = 0;
+						if ( contentLength != -1 )
+						{
+							while ( length != contentLength )
+							{
+								int len = proxyStream.Read ( temp, 0, 1024 );
+								length += len;
+								networkStream.Write ( temp, 0, len );
+							}
+						}
+						else
+						{
+							try
+							{
+								while ( true )
+								{
+									int len = proxyStream.Read ( temp, 0, 1024 );
+									length += len;
+									networkStream.Write ( temp, 0, len );
+								}
+							}
+							catch ( SocketException ex ) { Server.WriteLog ( ex.ToString () ); Server.SocketIsDead ( this ); return; }
+							catch { }
+						}
+
+						ReceiveRequest ();
+
+						return;
+					}
+					#endregion
+
+					#region Get POST data
 					if ( header.Fields.ContainsKey ( HttpHeaderField.ContentLength ) )
 					{
 						int contentLength = int.Parse ( header.Fields [ HttpHeaderField.ContentLength ] as string );
@@ -94,8 +194,8 @@ namespace Daramkun.Dweb
 						{
 							byte [] temp = new byte [ 1024 ];
 							int length = 0;
-							while ( length == contentLength )
-								length += Socket.Receive ( temp, contentLength - length >= 1024 ? 1024 : contentLength - length, SocketFlags.None );
+							while ( length != contentLength )
+								length += networkStream.Read ( temp, 0, 1024 );
 							HttpResponseHeader responseHeader = new HttpResponseHeader ( HttpStatusCode.RequestEntityTooLarge );
 							SendData ( responseHeader, null );
 							ReceiveRequest ();
@@ -112,7 +212,7 @@ namespace Daramkun.Dweb
 								int length = 0;
 								while ( length < contentLength )
 								{
-									int len = Socket.Receive ( temp, 1024, SocketFlags.None );
+									int len = networkStream.Read ( temp, 0, 1024 );
 									length += len;
 									memoryStream.Write ( temp, 0, len );
 								}
@@ -134,23 +234,27 @@ namespace Daramkun.Dweb
 							}
 						}
 					}
+					#endregion
 
-					// Next data receive
-					ReceiveRequest ();
-
+					#region Redirection
 					// If is redirect host then send the redirection response
 					if ( virtualHost is RedirectVirtualHost )
 					{
 						HttpResponseHeader responseHeader = new HttpResponseHeader ( HttpStatusCode.MultipleChoices );
 						responseHeader.Fields.Add ( HttpHeaderField.Location, ( virtualHost as RedirectVirtualHost ).Redirect );
 						SendData ( responseHeader, null );
+
+						ReceiveRequest ();
+						return;
 					}
-					else
-					{
-						Response ( header, virtualHost as SiteVirtualHost );
-					}
+					#endregion
+
+					#region Ordinary Response
+					Response ( header, virtualHost as SiteVirtualHost );
+					ReceiveRequest ();
+					#endregion
 				}
-				catch { Server.SocketIsDead ( this ); return; }
+				catch ( Exception ex ) { Server.WriteLog ( ex.ToString () ); Server.SocketIsDead ( this ); return; }
 			}, null );
 		}
 

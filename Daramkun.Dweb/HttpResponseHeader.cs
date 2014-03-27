@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using System.Text;
@@ -44,6 +45,25 @@ namespace Daramkun.Dweb
 			Fields.Add ( HttpHeaderField.Date, DateTime.UtcNow );
 			if ( server != null )
 				Fields.Add ( HttpHeaderField.Server, server.ServerName );
+		}
+
+		public HttpResponseHeader ( Stream stream )
+			: this ()
+		{
+			BinaryReader reader = new BinaryReader ( stream );
+
+			HttpVersion = new Version ( _Utility.ReadToSpace ( reader ).Substring ( 5 ) );
+			Status = ( HttpStatusCode ) int.Parse ( _Utility.ReadToSpace ( reader ) );
+			_Utility.SkipToNextLine ( reader );
+
+			Fields = new Dictionary<string, object> ();
+			string key;
+			while ( ( key = _Utility.ReadToColon ( reader ) ) != null )
+				if ( !Fields.ContainsKey ( key ) )
+				{
+					Fields.Add ( key, _Utility.ReadToNextLine ( reader ).Trim () );
+				}
+				else _Utility.ReadToNextLine ( reader );
 		}
 
 		public override string ToString ()

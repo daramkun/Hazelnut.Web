@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Daramkun.Dweb
 {
-	public  class VirtualHost
+	public class VirtualHost
 	{
 		public string ServerHost { get; private set; }
 		public string Administrator { get; set; }
@@ -18,7 +18,7 @@ namespace Daramkun.Dweb
 		{
 			ServerHost = serverHost;
 			Administrator = "";
-			MaximumPostSize = 8388608;								// 8.0MB
+			MaximumPostSize = 8388608;	// 8.0MB
 		}
 	}
 }

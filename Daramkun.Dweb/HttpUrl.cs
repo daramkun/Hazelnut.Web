@@ -31,14 +31,25 @@ namespace Daramkun.Dweb
 			}
 		}
 
+		public string QueryToString ()
+		{
+			StringBuilder builder = new StringBuilder ();
+			foreach ( KeyValuePair<string, string> pair in QueryString )
+				builder.AppendFormat ( "{0}={1}&", pair.Key, HttpUtility.UrlEncode ( pair.Value ) );
+			if ( builder.Length > 1 )
+				builder.Remove ( builder.Length - 1, 1 );
+			return builder.ToString ();
+		}
+
 		public override string ToString ()
 		{
 			StringBuilder builder = new StringBuilder ();
 			builder.Append ( Path [ 0 ] );
-			builder.Append ( '?' );
-			foreach ( KeyValuePair<string, string> pair in QueryString )
-				builder.AppendFormat ( "{0}={1}&", pair.Key, HttpUtility.UrlEncode ( pair.Value ) );
-			builder.Remove ( builder.Length - 1, 1 );
+			if ( QueryString.Count > 0 )
+			{
+				builder.Append ( '?' );
+				builder.Append ( QueryToString () );
+			}
 			return builder.ToString ();
 		}
 	}
