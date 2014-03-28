@@ -146,28 +146,7 @@ namespace Daramkun.Dweb
 				{
 					while ( isNotProceed )
 					{
-						if ( proxyStream == null )
-						{
-							IPEndPoint proxyEndPoint = null;
-
-							foreach ( IPAddress address in Dns.GetHostAddresses ( uri.DnsSafeHost ) )
-							{
-								proxyEndPoint = new IPEndPoint ( address, uri.Port );
-								break;
-							}
-
-							if ( proxyEndPoint == null )
-								throw new Exception ();
-
-							Socket proxySocket = new Socket ( proxyEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp );
-							proxySocket.Connect ( proxyEndPoint );
-							proxyStream = new NetworkStream ( proxySocket );
-							if ( uri.Scheme == "https" )
-							{
-								proxyStream = new SslStream ( proxyStream );
-								( proxyStream as SslStream ).AuthenticateAsClient ( ( virtualHost as ProxyVirtualHost ).ProxyAddress );
-							}
-						}
+						GetProxyStream ( uri );
 
 						if ( header.Fields.ContainsKey ( HttpHeaderField.Host ) )
 							header.Fields [ HttpHeaderField.Host ] = uri.DnsSafeHost;
@@ -208,26 +187,38 @@ namespace Daramkun.Dweb
 						}
 						else
 						{
-							try
+							if ( resHeader.Fields.ContainsKey ( HttpHeaderField.TransferEncoding ) && resHeader.Fields [ HttpHeaderField.TransferEncoding ] as string == "chunked" )
 							{
+								BinaryReader reader = new BinaryReader ( proxyStream );
 								while ( true )
 								{
-									int len = proxyStream.Read ( temp, 0, 1024 );
-									length += len;
-									networkStream.Write ( temp, 0, len );
+									string lengthHexa = _Utility.ReadToNextLine ( reader );
+									contentLength = Convert.ToInt32 ( "0x" + lengthHexa, 16 );
+									byte [] lengthBytes = Encoding.UTF8.GetBytes ( lengthHexa + "\r\n" );
+									networkStream.Write ( lengthBytes, 0, lengthBytes.Length );
+									if ( contentLength == 0 )
+									{
+										reader.ReadBytes ( 4 );
+										networkStream.Write ( Encoding.UTF8.GetBytes ( "\r\n\r\n" ), 0, 4 );
+										break;
+									}
+
+									while ( length != contentLength )
+									{
+										int len = proxyStream.Read ( temp, 0, ( contentLength - length > 1024 ) ? 1024 : ( contentLength - length ) );
+										length += len;
+										networkStream.Write ( temp, 0, len );
+									}
+
+									reader.ReadBytes ( 2 );
+									networkStream.Write ( Encoding.UTF8.GetBytes ( "\r\n" ), 0, 2 );
 								}
-							}
-							catch ( SocketException ex )
-							{
-								Server.WriteLog ( ex.ToString () );
-								Server.SocketIsDead ( this );
-								throw ex;
 							}
 						}
 						isNotProceed = false;
 					}
 				}
-				catch
+				catch ( EndOfStreamException )
 				{
 					if ( proxyStream != null )
 						proxyStream.Dispose ();
@@ -240,6 +231,31 @@ namespace Daramkun.Dweb
 			}
 
 			return false;
+		}
+
+		private Stream GetProxyStream ( Uri uri )
+		{
+			if ( proxyStream != null ) return proxyStream;
+
+			IPEndPoint proxyEndPoint = null;
+			foreach ( IPAddress address in Dns.GetHostAddresses ( uri.DnsSafeHost ) )
+			{
+				proxyEndPoint = new IPEndPoint ( address, uri.Port );
+				break;
+			}
+
+			if ( proxyEndPoint == null )
+				throw new Exception ();
+
+			Socket proxySocket = new Socket ( proxyEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp );
+			proxySocket.Connect ( proxyEndPoint );
+			proxyStream = new NetworkStream ( proxySocket );
+			if ( uri.Scheme == "https" )
+			{
+				proxyStream = new SslStream ( proxyStream );
+				( proxyStream as SslStream ).AuthenticateAsClient ( ( virtualHost as ProxyVirtualHost ).ProxyAddress );
+			}
+			return proxyStream;
 		}
 
 		private void GetPostData ( ref HttpRequestHeader header )
