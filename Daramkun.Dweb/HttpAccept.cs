@@ -54,7 +54,8 @@ namespace Daramkun.Dweb
 				networkStream.Dispose ();
 				try
 				{
-					Socket.Disconnect ( false );
+					Socket.Close ();
+					Socket.Dispose ();
 				}
 				catch { }
 			}
@@ -100,15 +101,55 @@ namespace Daramkun.Dweb
 					}
 					#endregion
 
-					#region Proxy Process
-					// If Virtual Host is Proxy Host, Processing the Proxy process.
-					if ( virtualHost is ProxyVirtualHost )
+					if ( ProxyProcess ( header ) ) return;
+					GetPostData ( ref header );
+					if ( RedirectProcess ( header ) ) return;
+
+					#region Ordinary Response
+					Response ( header, virtualHost as SiteVirtualHost );
+					ReceiveRequest ();
+					#endregion
+				}
+				catch ( Exception ex )
+				{
+					Server.WriteLog ( ex.ToString () );
+					Server.SocketIsDead ( this );
+					return;
+				}
+			}, null );
+		}
+
+		private bool RedirectProcess ( HttpRequestHeader header )
+		{
+			// If is redirect host then send the redirection response
+			if ( virtualHost is RedirectVirtualHost )
+			{
+				HttpResponseHeader responseHeader = new HttpResponseHeader ( HttpStatusCode.MultipleChoices );
+				responseHeader.Fields.Add ( HttpHeaderField.Location, ( virtualHost as RedirectVirtualHost ).Redirect );
+				SendData ( responseHeader, null );
+
+				ReceiveRequest ();
+				return true;
+			}
+
+			return false;
+		}
+
+		private bool ProxyProcess ( HttpRequestHeader header )
+		{
+			// If Virtual Host is Proxy Host, Processing the Proxy process.
+			if ( virtualHost is ProxyVirtualHost )
+			{
+				Uri uri = new Uri ( ( virtualHost as ProxyVirtualHost ).ProxyAddress );
+				bool isNotProceed = true;
+				try
+				{
+					while ( isNotProceed )
 					{
-						Uri uri = new Uri ( ( virtualHost as ProxyVirtualHost ).ProxyAddress );
 						if ( proxyStream == null )
 						{
 							IPEndPoint proxyEndPoint = null;
-							
+
 							foreach ( IPAddress address in Dns.GetHostAddresses ( uri.DnsSafeHost ) )
 							{
 								proxyEndPoint = new IPEndPoint ( address, uri.Port );
@@ -130,7 +171,7 @@ namespace Daramkun.Dweb
 
 						if ( header.Fields.ContainsKey ( HttpHeaderField.Host ) )
 							header.Fields [ HttpHeaderField.Host ] = uri.DnsSafeHost;
-						
+
 						byte [] headerBytes = Encoding.UTF8.GetBytes ( header.ToString () );
 						byte [] temp = new byte [ 1024 ];
 						int contentLength, length;
@@ -176,86 +217,80 @@ namespace Daramkun.Dweb
 									networkStream.Write ( temp, 0, len );
 								}
 							}
-							catch ( SocketException ex ) { Server.WriteLog ( ex.ToString () ); Server.SocketIsDead ( this ); return; }
-							catch { }
-						}
-
-						ReceiveRequest ();
-
-						return;
-					}
-					#endregion
-
-					#region Get POST data
-					if ( header.Fields.ContainsKey ( HttpHeaderField.ContentLength ) )
-					{
-						int contentLength = int.Parse ( header.Fields [ HttpHeaderField.ContentLength ] as string );
-						if ( contentLength > virtualHost.MaximumPostSize )
-						{
-							byte [] temp = new byte [ 1024 ];
-							int length = 0;
-							while ( length != contentLength )
-								length += networkStream.Read ( temp, 0, 1024 );
-							HttpResponseHeader responseHeader = new HttpResponseHeader ( HttpStatusCode.RequestEntityTooLarge );
-							SendData ( responseHeader, null );
-							ReceiveRequest ();
-							return;
-						}
-						if ( contentLength > 0 )
-						{
-							// POST data
-							if ( header.Fields [ HttpHeaderField.ContentType ] as string == "application/x-www-form-urlencoded" )
+							catch ( SocketException ex )
 							{
-								// URL Encoded POST data
-								MemoryStream memoryStream = new MemoryStream ();
-								byte [] temp = new byte [ 1024 ];
-								int length = 0;
-								while ( length < contentLength )
-								{
-									int len = networkStream.Read ( temp, 0, 1024 );
-									length += len;
-									memoryStream.Write ( temp, 0, len );
-								}
-
-								string postString = HttpUtility.UrlDecode ( memoryStream.ToArray (), 0, ( int ) memoryStream.Length, Encoding.UTF8 );
-								string [] tt = postString.Split ( '&' );
-								tt = tt [ 1 ].Split ( '&' );
-								foreach ( string s in tt )
-								{
-									string [] temp2 = s.Split ( '=' );
-									header.PostData.Add ( temp2 [ 0 ], ( temp2.Length == 2 ) ? HttpUtility.UrlDecode ( temp2 [ 1 ] ) : null );
-								}
-							}
-							else
-							{
-								// Multipart POST data
-								ContentType contentType = new ContentType ( header.Fields [ HttpHeaderField.ContentType ] as string );
-								ReadMultipartPOSTData ( new BinaryReader ( networkStream ), contentLength, contentType.Boundary, header.PostData );
+								Server.WriteLog ( ex.ToString () );
+								Server.SocketIsDead ( this );
+								throw ex;
 							}
 						}
+						isNotProceed = false;
 					}
-					#endregion
-
-					#region Redirection
-					// If is redirect host then send the redirection response
-					if ( virtualHost is RedirectVirtualHost )
-					{
-						HttpResponseHeader responseHeader = new HttpResponseHeader ( HttpStatusCode.MultipleChoices );
-						responseHeader.Fields.Add ( HttpHeaderField.Location, ( virtualHost as RedirectVirtualHost ).Redirect );
-						SendData ( responseHeader, null );
-
-						ReceiveRequest ();
-						return;
-					}
-					#endregion
-
-					#region Ordinary Response
-					Response ( header, virtualHost as SiteVirtualHost );
-					ReceiveRequest ();
-					#endregion
 				}
-				catch ( Exception ex ) { Server.WriteLog ( ex.ToString () ); Server.SocketIsDead ( this ); return; }
-			}, null );
+				catch
+				{
+					if ( proxyStream != null )
+						proxyStream.Dispose ();
+					proxyStream = null;
+				}
+
+				ReceiveRequest ();
+
+				return true;
+			}
+
+			return false;
+		}
+
+		private void GetPostData ( ref HttpRequestHeader header )
+		{
+			if ( header.Fields.ContainsKey ( HttpHeaderField.ContentLength ) )
+			{
+				int contentLength = int.Parse ( header.Fields [ HttpHeaderField.ContentLength ] as string );
+				if ( contentLength > virtualHost.MaximumPostSize )
+				{
+					byte [] temp = new byte [ 1024 ];
+					int length = 0;
+					while ( length != contentLength )
+						length += networkStream.Read ( temp, 0, 1024 );
+					HttpResponseHeader responseHeader = new HttpResponseHeader ( HttpStatusCode.RequestEntityTooLarge );
+					SendData ( responseHeader, null );
+					ReceiveRequest ();
+					return;
+				}
+				if ( contentLength > 0 )
+				{
+					// POST data
+					if ( header.Fields [ HttpHeaderField.ContentType ] as string == "application/x-www-form-urlencoded" )
+					{
+						// URL Encoded POST data
+						MemoryStream memoryStream = new MemoryStream ();
+						byte [] temp = new byte [ 1024 ];
+						int length = 0;
+						while ( length < contentLength )
+						{
+							int len = networkStream.Read ( temp, 0, 1024 );
+							length += len;
+							memoryStream.Write ( temp, 0, len );
+						}
+
+						string postString = HttpUtility.UrlDecode ( memoryStream.ToArray (), 0, ( int ) memoryStream.Length, Encoding.UTF8 );
+						string [] tt = postString.Split ( '&' );
+						tt = tt [ 1 ].Split ( '&' );
+						foreach ( string s in tt )
+						{
+							string [] temp2 = s.Split ( '=' );
+							header.PostData.Add ( temp2 [ 0 ], ( temp2.Length == 2 ) ? HttpUtility.UrlDecode ( temp2 [ 1 ] ) : null );
+						}
+					}
+					else
+					{
+						// Multipart POST data
+						ContentType contentType = new ContentType ( header.Fields [ HttpHeaderField.ContentType ] as string );
+						ReadMultipartPOSTData ( new BinaryReader ( networkStream ), contentLength, contentType.Boundary, header.PostData );
+					}
+				}
+			}
 		}
 
 		private void ReadMultipartPOSTData ( BinaryReader reader, int contentLength, string boundary, FieldCollection dictionary )
