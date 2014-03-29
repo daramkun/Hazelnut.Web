@@ -1,0 +1,12 @@
+﻿{
+	"port" : 80,
+	"virtualhost": [
+		{
+			"host" : "*",
+			"type": "site",
+			"root": "E:\\Web",
+		}
+	],
+	"mime" : "default",
+	"log" : "stdout"
+}

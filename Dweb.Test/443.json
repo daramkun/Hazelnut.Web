@@ -1,0 +1,14 @@
+﻿{
+	"port" : 443,
+	"cert" : "E:\\test.pfx",
+	"certpw" : "eternity",
+	"virtualhost": [
+		{
+			"host" : "*",
+			"type": "site",
+			"root": "E:\\Web",
+		}
+	],
+	"mime" : "default",
+	"log" : "stdout"
+}

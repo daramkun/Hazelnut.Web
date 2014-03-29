@@ -17,9 +17,13 @@ namespace Daramkun.Dweb
 {
 	public class HttpAccept : IDisposable
 	{
+		readonly byte [] NullByte = new byte [ 0 ];
+
 		Stream networkStream;
 		VirtualHost virtualHost;
 		Stream proxyStream;
+
+		byte [] dataBuffer = new byte [ 4096 ];
 		
 		public HttpServer Server { get; private set; }
 		public Socket Socket { get; private set; }
@@ -69,7 +73,7 @@ namespace Daramkun.Dweb
 
 		public void ReceiveRequest ()
 		{
-			Socket.BeginReceive ( new byte [ 0 ], 0, 0, SocketFlags.None, ( IAsyncResult ar ) =>
+			Socket.BeginReceive ( NullByte, 0, 0, SocketFlags.None, ( IAsyncResult ar ) =>
 			{
 				try
 				{
@@ -113,10 +117,10 @@ namespace Daramkun.Dweb
 			if ( virtualHost == null )
 			{
 				if ( header.Fields.ContainsKey ( HttpHeaderField.Host ) )
-					if ( Server.VirtualSites.ContainsKey ( header.Fields [ HttpHeaderField.Host.Split ( ':' ) [ 0 ] ] as string ) )
-						virtualHost = Server.VirtualSites [ header.Fields [ HttpHeaderField.Host.Split ( ':' ) [ 0 ] ] as string ];
+					if ( Server.VirtualHosts.ContainsKey ( header.Fields [ HttpHeaderField.Host.Split ( ':' ) [ 0 ] ] as string ) )
+						virtualHost = Server.VirtualHosts [ header.Fields [ HttpHeaderField.Host.Split ( ':' ) [ 0 ] ] as string ];
 				if ( virtualHost == null )
-					virtualHost = Server.VirtualSites.First ().Value;
+					virtualHost = Server.VirtualHosts.First ().Value;
 			}
 		}
 
@@ -152,7 +156,6 @@ namespace Daramkun.Dweb
 						if ( header.Fields.ContainsKey ( HttpHeaderField.Host ) )
 							header.Fields [ HttpHeaderField.Host ] = uri.DnsSafeHost;
 						byte [] headerBytes = Encoding.UTF8.GetBytes ( header.ToString () );
-						byte [] temp = new byte [ 1024 ];
 						int contentLength, length;
 
 						proxyStream.Write ( headerBytes, 0, headerBytes.Length );
@@ -162,9 +165,9 @@ namespace Daramkun.Dweb
 							length = 0;
 							while ( length != contentLength )
 							{
-								int len = networkStream.Read ( temp, 0, 1024 );
+								int len = networkStream.Read ( dataBuffer, 0, 1024 );
 								length += len;
-								proxyStream.Write ( temp, 0, len );
+								proxyStream.Write ( dataBuffer, 0, len );
 							}
 						}
 
@@ -219,10 +222,9 @@ namespace Daramkun.Dweb
 				int contentLength = int.Parse ( header.Fields [ HttpHeaderField.ContentLength ] as string );
 				if ( contentLength > virtualHost.MaximumPostSize )
 				{
-					byte [] temp = new byte [ 1024 ];
 					int length = 0;
 					while ( length != contentLength )
-						length += networkStream.Read ( temp, 0, 1024 );
+						length += networkStream.Read ( dataBuffer, 0, dataBuffer.Length );
 					HttpResponseHeader responseHeader = new HttpResponseHeader ( HttpStatusCode.RequestEntityTooLarge );
 					SendData ( responseHeader, null );
 					ReceiveRequest ();
@@ -235,13 +237,12 @@ namespace Daramkun.Dweb
 					{
 						// URL Encoded POST data
 						MemoryStream memoryStream = new MemoryStream ();
-						byte [] temp = new byte [ 1024 ];
 						int length = 0;
 						while ( length < contentLength )
 						{
-							int len = networkStream.Read ( temp, 0, 1024 );
+							int len = networkStream.Read ( dataBuffer, 0, dataBuffer.Length );
 							length += len;
-							memoryStream.Write ( temp, 0, len );
+							memoryStream.Write ( dataBuffer, 0, len );
 						}
 
 						string postString = HttpUtility.UrlDecode ( memoryStream.ToArray (), 0, ( int ) memoryStream.Length, Encoding.UTF8 );
@@ -436,21 +437,22 @@ namespace Daramkun.Dweb
 			networkStream.Write ( headerData, 0, headerData.Length );
 			if ( stream != null )
 			{
-				byte [] data = new byte [ 4096 ];
 				int contentLength = 0;
 				int length = 0;
 
 				if ( header.Fields.ContainsKey ( HttpHeaderField.ContentLength ) )
-					contentLength = int.Parse ( header.Fields [ HttpHeaderField.ContentLength ] as string );
+					contentLength = header.Fields [ HttpHeaderField.ContentLength ] is string ?
+						int.Parse ( header.Fields [ HttpHeaderField.ContentLength ] as string ) :
+						Convert.ToInt32 ( header.Fields [ HttpHeaderField.ContentLength ] );
 				else contentLength = -1;
 
 				if ( contentLength != -1 )
 				{
 					while ( length != contentLength )
 					{
-						int len = stream.Read ( data, 0, data.Length );
+						int len = stream.Read ( dataBuffer, 0, dataBuffer.Length );
 						length += len;
-						networkStream.Write ( data, 0, len );
+						networkStream.Write ( dataBuffer, 0, len );
 					}
 				}
 				else
@@ -473,9 +475,9 @@ namespace Daramkun.Dweb
 
 							while ( length != contentLength )
 							{
-								int len = stream.Read ( data, 0, ( contentLength - length > 1024 ) ? 1024 : ( contentLength - length ) );
+								int len = stream.Read ( dataBuffer, 0, ( contentLength - length > 1024 ) ? 1024 : ( contentLength - length ) );
 								length += len;
-								networkStream.Write ( data, 0, len );
+								networkStream.Write ( dataBuffer, 0, len );
 							}
 
 							reader.ReadBytes ( 2 );

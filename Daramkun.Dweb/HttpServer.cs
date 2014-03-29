@@ -31,7 +31,7 @@ namespace Daramkun.Dweb
 
 		public Dictionary<Socket, HttpAccept> Clients { get; private set; }
 		public Dictionary<string, ContentType> Mimes { get; private set; }
-		public Dictionary<string, VirtualHost> VirtualSites { get; private set; }
+		public Dictionary<string, VirtualHost> VirtualHosts { get; private set; }
 		public Dictionary<HttpStatusCode, Stream> StatusPage { get; private set; }
 
 		public TextWriter LogStream { get; set; }
@@ -62,7 +62,7 @@ namespace Daramkun.Dweb
 			WriteLog ( "Initialized: {0}", endPoint );
 
 			Mimes = new Dictionary<string, ContentType> ();
-			VirtualSites = new Dictionary<string, VirtualHost> ();
+			VirtualHosts = new Dictionary<string, VirtualHost> ();
 			Plugins = new List<IPlugin> ();
 			originalPlugin = new OriginalPlugin ();
 
@@ -75,8 +75,6 @@ namespace Daramkun.Dweb
 			IndexNames = new List<string> ( new string [] { "index.html", "index.htm", "index.dhtml", "index.xhtml" } );
 
 			X509 = x509Cert;
-
-			Accepting ();
 		}
 
 		~HttpServer () { Dispose ( false ); }
@@ -99,6 +97,11 @@ namespace Daramkun.Dweb
 		{
 			Dispose ( true );
 			GC.SuppressFinalize ( this );
+		}
+
+		public void Start ()
+		{
+			Accepting ();
 		}
 
 		private void Accepting ()

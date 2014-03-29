@@ -1,20 +1,19 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{40C312BC-9C52-45D7-AAFD-0F4B832B716F}</ProjectGuid>
-    <OutputType>Exe</OutputType>
+    <ProjectGuid>{0DEDA2A2-CB46-4A14-825E-A431F749FBCB}</ProjectGuid>
+    <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Dweb.Test</RootNamespace>
-    <AssemblyName>Dweb.Test</AssemblyName>
+    <RootNamespace>Daramkun.Dweb.Utility</RootNamespace>
+    <AssemblyName>Daramkun.Dweb.Utility</AssemblyName>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
-    <ProductVersion>12.0.0</ProductVersion>
-    <SchemaVersion>2.0</SchemaVersion>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
@@ -24,7 +23,6 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
@@ -33,31 +31,24 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Daramkun.Blockar">
+      <HintPath>..\packages\Daramkun.Blockar.2.0.1.0\lib\portable-net4+sl5+wp8+win8\Daramkun.Blockar.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
-    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Program.cs" />
+    <Compile Include="VirtualHostLoader.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="80.json" />
-    <EmbeddedResource Include="443.json" />
-    <EmbeddedResource Include="8080.json" />
-    <None Include="App.config" />
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Daramkun.Dweb.Utility\Daramkun.Dweb.Utility.csproj">
-      <Project>{0deda2a2-cb46-4a14-825e-a431f749fbcb}</Project>
-      <Name>Daramkun.Dweb.Utility</Name>
-    </ProjectReference>
     <ProjectReference Include="..\Daramkun.Dweb\Daramkun.Dweb.csproj">
-      <Project>{CAD94F5C-609D-4D5D-809E-6A7533581EF7}</Project>
+      <Project>{cad94f5c-609d-4d5d-809e-6a7533581ef7}</Project>
       <Name>Daramkun.Dweb</Name>
     </ProjectReference>
   </ItemGroup>

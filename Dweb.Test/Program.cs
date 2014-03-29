@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Daramkun.Dweb;
+using Daramkun.Dweb.Utility;
 using Daramkun.Dweb.VirtualHosts;
 
 namespace Dweb.Test
@@ -15,16 +17,15 @@ namespace Dweb.Test
 	{
 		static void Main ( string [] args )
 		{
-			HttpServer server = new HttpServer ( new IPEndPoint ( IPAddress.Any, 80 ), 5, null, Console.Out );
-			server.AddDefaultMimes ();
-			server.VirtualSites.Add ( "*", new SiteVirtualHost ( "*", @"E:\Web" ) );
+			Assembly assembly = Assembly.GetEntryAssembly ();
 
-			HttpServer sslServer = new HttpServer ( new IPEndPoint ( IPAddress.Any, 443 ), 5, new X509Certificate2 ( @"E:\test.pfx", "eternity" ), Console.Out );
-			sslServer.AddDefaultMimes ();
-			sslServer.VirtualSites.Add ( "*", new SiteVirtualHost ( "*", @"E:\Web" ) );
+			HttpServer server = VirtualHostLoader.LoadServerConfiguration ( assembly.GetManifestResourceStream ( "Dweb.Test.80.json" ) );
+			HttpServer sslServer = VirtualHostLoader.LoadServerConfiguration ( assembly.GetManifestResourceStream ( "Dweb.Test.443.json" ) );
+			HttpServer proxyServer = VirtualHostLoader.LoadServerConfiguration ( assembly.GetManifestResourceStream ( "Dweb.Test.8080.json" ) );
 
-			HttpServer proxyServer = new HttpServer ( new IPEndPoint ( IPAddress.Any, 8080 ), 5, null, Console.Out );
-			proxyServer.VirtualSites.Add ( "*", new ProxyVirtualHost ( "*", @"http://www.grow.or.kr" ) );
+			server.Start ();
+			sslServer.Start ();
+			proxyServer.Start ();
 
 			while ( server.IsServerAlive )
 			{

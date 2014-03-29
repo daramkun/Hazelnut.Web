@@ -1,0 +1,12 @@
+﻿{
+	"port" : 8080,
+	"virtualhost": [
+		{
+			"host" : "*",
+			"type": "proxy",
+			"proxy": "http://www.grow.or.kr",
+		}
+	],
+	"mime" : "default",
+	"log" : "stdout"
+}
