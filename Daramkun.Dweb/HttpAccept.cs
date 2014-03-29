@@ -89,21 +89,10 @@ namespace Daramkun.Dweb
 						header.QueryString );
 					#endregion
 
-					#region Find Virtual Host
-					// Find Virtual Host
-					if ( virtualHost == null )
-					{
-						if ( header.Fields.ContainsKey ( HttpHeaderField.Host ) )
-							if ( Server.VirtualSites.ContainsKey ( header.Fields [ HttpHeaderField.Host.Split ( ':' ) [ 0 ] ] as string ) )
-								virtualHost = Server.VirtualSites [ header.Fields [ HttpHeaderField.Host.Split ( ':' ) [ 0 ] ] as string ];
-						if ( virtualHost == null )
-							virtualHost = Server.VirtualSites.First ().Value;
-					}
-					#endregion
-
-					if ( ProxyProcess ( header ) ) return;
+					FindVirtualHost ( ref header );
+					if ( ProxyProcess ( ref header ) ) return;
 					GetPostData ( ref header );
-					if ( RedirectProcess ( header ) ) return;
+					if ( RedirectProcess () ) return;
 
 					#region Ordinary Response
 					Response ( header, virtualHost as SiteVirtualHost );
@@ -119,7 +108,19 @@ namespace Daramkun.Dweb
 			}, null );
 		}
 
-		private bool RedirectProcess ( HttpRequestHeader header )
+		private void FindVirtualHost ( ref HttpRequestHeader header )
+		{
+			if ( virtualHost == null )
+			{
+				if ( header.Fields.ContainsKey ( HttpHeaderField.Host ) )
+					if ( Server.VirtualSites.ContainsKey ( header.Fields [ HttpHeaderField.Host.Split ( ':' ) [ 0 ] ] as string ) )
+						virtualHost = Server.VirtualSites [ header.Fields [ HttpHeaderField.Host.Split ( ':' ) [ 0 ] ] as string ];
+				if ( virtualHost == null )
+					virtualHost = Server.VirtualSites.First ().Value;
+			}
+		}
+
+		private bool RedirectProcess ()
 		{
 			// If is redirect host then send the redirection response
 			if ( virtualHost is RedirectVirtualHost )
@@ -135,7 +136,7 @@ namespace Daramkun.Dweb
 			return false;
 		}
 
-		private bool ProxyProcess ( HttpRequestHeader header )
+		private bool ProxyProcess ( ref HttpRequestHeader header )
 		{
 			// If Virtual Host is Proxy Host, Processing the Proxy process.
 			if ( virtualHost is ProxyVirtualHost )
@@ -150,7 +151,6 @@ namespace Daramkun.Dweb
 
 						if ( header.Fields.ContainsKey ( HttpHeaderField.Host ) )
 							header.Fields [ HttpHeaderField.Host ] = uri.DnsSafeHost;
-
 						byte [] headerBytes = Encoding.UTF8.GetBytes ( header.ToString () );
 						byte [] temp = new byte [ 1024 ];
 						int contentLength, length;
@@ -169,52 +169,7 @@ namespace Daramkun.Dweb
 						}
 
 						HttpResponseHeader resHeader = new HttpResponseHeader ( proxyStream );
-						headerBytes = Encoding.UTF8.GetBytes ( resHeader.ToString () );
-						networkStream.Write ( headerBytes, 0, headerBytes.Length );
-
-						if ( resHeader.Fields.ContainsKey ( HttpHeaderField.ContentLength ) )
-							contentLength = int.Parse ( resHeader.Fields [ HttpHeaderField.ContentLength ] as string );
-						else contentLength = -1;
-						length = 0;
-						if ( contentLength != -1 )
-						{
-							while ( length != contentLength )
-							{
-								int len = proxyStream.Read ( temp, 0, 1024 );
-								length += len;
-								networkStream.Write ( temp, 0, len );
-							}
-						}
-						else
-						{
-							if ( resHeader.Fields.ContainsKey ( HttpHeaderField.TransferEncoding ) && resHeader.Fields [ HttpHeaderField.TransferEncoding ] as string == "chunked" )
-							{
-								BinaryReader reader = new BinaryReader ( proxyStream );
-								while ( true )
-								{
-									string lengthHexa = _Utility.ReadToNextLine ( reader );
-									contentLength = Convert.ToInt32 ( "0x" + lengthHexa, 16 );
-									byte [] lengthBytes = Encoding.UTF8.GetBytes ( lengthHexa + "\r\n" );
-									networkStream.Write ( lengthBytes, 0, lengthBytes.Length );
-									if ( contentLength == 0 )
-									{
-										reader.ReadBytes ( 4 );
-										networkStream.Write ( Encoding.UTF8.GetBytes ( "\r\n\r\n" ), 0, 4 );
-										break;
-									}
-
-									while ( length != contentLength )
-									{
-										int len = proxyStream.Read ( temp, 0, ( contentLength - length > 1024 ) ? 1024 : ( contentLength - length ) );
-										length += len;
-										networkStream.Write ( temp, 0, len );
-									}
-
-									reader.ReadBytes ( 2 );
-									networkStream.Write ( Encoding.UTF8.GetBytes ( "\r\n" ), 0, 2 );
-								}
-							}
-						}
+						SendData ( resHeader, proxyStream );
 						isNotProceed = false;
 					}
 				}
@@ -224,7 +179,6 @@ namespace Daramkun.Dweb
 						proxyStream.Dispose ();
 					proxyStream = null;
 				}
-
 				ReceiveRequest ();
 
 				return true;
@@ -482,13 +436,56 @@ namespace Daramkun.Dweb
 			networkStream.Write ( headerData, 0, headerData.Length );
 			if ( stream != null )
 			{
-				byte [] data = new byte [ 1024 ];
-				while ( stream.Position != stream.Length )
+				byte [] data = new byte [ 4096 ];
+				int contentLength = 0;
+				int length = 0;
+
+				if ( header.Fields.ContainsKey ( HttpHeaderField.ContentLength ) )
+					contentLength = int.Parse ( header.Fields [ HttpHeaderField.ContentLength ] as string );
+				else contentLength = -1;
+
+				if ( contentLength != -1 )
 				{
-					int len = stream.Read ( data, 0, data.Length );
-					networkStream.Write ( data, 0, len );
+					while ( length != contentLength )
+					{
+						int len = stream.Read ( data, 0, data.Length );
+						length += len;
+						networkStream.Write ( data, 0, len );
+					}
 				}
-				stream.Dispose ();
+				else
+				{
+					if ( header.Fields.ContainsKey ( HttpHeaderField.TransferEncoding ) && header.Fields [ HttpHeaderField.TransferEncoding ] as string == "chunked" )
+					{
+						BinaryReader reader = new BinaryReader ( stream );
+						while ( true )
+						{
+							string lengthHexa = _Utility.ReadToNextLine ( reader );
+							contentLength = Convert.ToInt32 ( "0x" + lengthHexa, 16 );
+							byte [] lengthBytes = Encoding.UTF8.GetBytes ( lengthHexa + "\r\n" );
+							networkStream.Write ( lengthBytes, 0, lengthBytes.Length );
+							if ( contentLength == 0 )
+							{
+								reader.ReadBytes ( 4 );
+								networkStream.Write ( Encoding.UTF8.GetBytes ( "\r\n\r\n" ), 0, 4 );
+								break;
+							}
+
+							while ( length != contentLength )
+							{
+								int len = stream.Read ( data, 0, ( contentLength - length > 1024 ) ? 1024 : ( contentLength - length ) );
+								length += len;
+								networkStream.Write ( data, 0, len );
+							}
+
+							reader.ReadBytes ( 2 );
+							networkStream.Write ( Encoding.UTF8.GetBytes ( "\r\n" ), 0, 2 );
+						}
+					}
+				}
+
+				if ( stream is FileStream || stream is MemoryStream )
+					stream.Dispose ();
 			}
 
 			networkStream.Flush ();
