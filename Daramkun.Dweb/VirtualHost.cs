@@ -13,12 +13,14 @@ namespace Daramkun.Dweb
 		public string ServerHost { get; private set; }
 		public string Administrator { get; set; }
 		public int MaximumPostSize { get; set; }
+		public Dictionary<string, VirtualHost> SubDirectory { get; private set; }
 
 		public VirtualHost ( string serverHost )
 		{
 			ServerHost = serverHost;
 			Administrator = "";
 			MaximumPostSize = 8388608;	// 8.0MB
+			SubDirectory = new Dictionary<string, VirtualHost> ();
 		}
 	}
 }

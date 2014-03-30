@@ -73,7 +73,7 @@ namespace Daramkun.Dweb
 			if ( filename [ filename.Length - 1 ] == '\\' )
 				filename.Remove ( filename.Length - 1, 1 );
 
-			for ( int i = startIndex; i < url.Path.Length; ++i )
+			for ( int i = startIndex; i < url.Path.Count; ++i )
 				filename.AppendFormat ( "\\{0}", url.Path [ i ] );
 
 			return filename.ToString ();

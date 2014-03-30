@@ -24,12 +24,6 @@ namespace Daramkun.Dweb.Utility
 				case "site":
 					virtualHost = new SiteVirtualHost ( document [ "host" ] as string, document [ "root" ] as string );
 					
-					if ( document.Contains ( "subdir" ) )
-					{
-						foreach ( KeyValuePair<object, object> k in ( document [ "subdir" ] as JsonContainer ).GetDictionaryEnumerable () )
-							( virtualHost as SiteVirtualHost ).SubDirectory.Add ( k.Key as string, k.Value as string );
-					}
-					
 					if ( document.Contains ( "rewrite" ) )
 					{
 						foreach ( KeyValuePair<object, object> k in ( document [ "rewrite" ] as JsonContainer ).GetDictionaryEnumerable () )
@@ -44,6 +38,13 @@ namespace Daramkun.Dweb.Utility
 				case "proxy":
 					virtualHost = new ProxyVirtualHost ( document [ "host" ] as string, document [ "proxy" ] as string );
 					break;
+			}
+
+			if ( document.Contains ( "subdir" ) )
+			{
+				foreach ( KeyValuePair<object, object> k in ( document [ "subdir" ] as JsonContainer ).GetDictionaryEnumerable () )
+					( virtualHost as SiteVirtualHost ).SubDirectory.Add ( ( k.Value as JsonContainer ) [ "host" ] as string,
+						CreateVirtualHost ( k.Value as JsonContainer ) );
 			}
 
 			return virtualHost;

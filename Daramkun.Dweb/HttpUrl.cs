@@ -11,13 +11,13 @@ namespace Daramkun.Dweb
 {
 	public class HttpUrl
 	{
-		public string [] Path { get; set; }
+		public List<string> Path { get; set; }
 		public FieldCollection QueryString { get; private set; }
 
 		public HttpUrl ( string path )
 		{
 			string [] temp = path.Split ( '#' ) [ 0 ].Split ( '?' );
-			Path = temp [ 0 ].Split ( '/' );
+			Path = new List<string> ( temp [ 0 ].Split ( '/' ) );
 			Path [ 0 ] = temp [ 0 ];
 			QueryString = new FieldCollection ();
 			if ( temp.Length > 1 )

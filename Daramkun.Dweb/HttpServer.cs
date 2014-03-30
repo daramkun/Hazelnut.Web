@@ -87,7 +87,7 @@ namespace Daramkun.Dweb
 					accept.Value.Dispose ();
 				Clients.Clear ();
 				sockets.Clear ();
-				listenSocket.Disconnect ( false );
+				listenSocket.Close ();
 				listenSocket.Dispose ();
 				listenSocket = null;
 			}

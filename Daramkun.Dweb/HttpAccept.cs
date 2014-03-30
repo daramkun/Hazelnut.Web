@@ -92,8 +92,8 @@ namespace Daramkun.Dweb
 						header.Fields.ContainsKey ( HttpHeaderField.Host ) ? header.Fields [ HttpHeaderField.Host ] : "",
 						header.QueryString );
 					#endregion
+					VirtualHost virtualHost = FindVirtualHost ( ref header );
 
-					FindVirtualHost ( ref header );
 					if ( ProxyProcess ( ref header ) ) return;
 					GetPostData ( ref header );
 					if ( RedirectProcess () ) return;
@@ -112,8 +112,9 @@ namespace Daramkun.Dweb
 			}, null );
 		}
 
-		private void FindVirtualHost ( ref HttpRequestHeader header )
+		private VirtualHost FindVirtualHost ( ref HttpRequestHeader header )
 		{
+			VirtualHost virtualHost = this.virtualHost;
 			if ( virtualHost == null )
 			{
 				if ( header.Fields.ContainsKey ( HttpHeaderField.Host ) )
@@ -121,7 +122,36 @@ namespace Daramkun.Dweb
 						virtualHost = Server.VirtualHosts [ header.Fields [ HttpHeaderField.Host.Split ( ':' ) [ 0 ] ] as string ];
 				if ( virtualHost == null )
 					virtualHost = Server.VirtualHosts.First ().Value;
+				this.virtualHost = virtualHost;
 			}
+
+			do
+			{
+				if ( header.QueryString.Path.Count > 2 )
+				{
+					bool subDirectoried = false;
+
+					// Find sub directory
+					foreach ( KeyValuePair<string, VirtualHost> k in virtualHost.SubDirectory )
+					{
+						// If found sub directory, apply sub directory
+						if ( header.QueryString.Path [ 1 ] == k.Key )
+						{
+							header.QueryString.Path.RemoveAt ( 1 );
+							virtualHost = k.Value;
+							subDirectoried = true;
+							break;
+						}
+					}
+
+					if ( !subDirectoried )
+						break;
+				}
+				else break;
+			}
+			while ( true );
+
+			return virtualHost;
 		}
 
 		private bool RedirectProcess ()
@@ -353,25 +383,7 @@ namespace Daramkun.Dweb
 			}
 
 			// Get real path of url
-			bool subDirectoried = false;
-			string filename = null;
-			if ( header.QueryString.Path.Length > 2 )
-			{
-				// Find sub directory
-				foreach ( KeyValuePair<string, string> k in virtualHost.SubDirectory )
-				{
-					// If found sub directory, apply sub directory
-					if ( header.QueryString.Path [ 1 ] == k.Key )
-					{
-						filename = _Utility.GetFilename ( k.Key, header.QueryString, 2 );
-						subDirectoried = true;
-						break;
-					}
-				}
-			}
-			// If can't found sub directory, apply root directory
-			if ( !subDirectoried )
-				filename = _Utility.GetFilename ( virtualHost.RootDirectory, header.QueryString, 1 );
+			string filename = _Utility.GetFilename ( virtualHost.RootDirectory, header.QueryString, 1 );
 
 			// Cannot found file, apply index filename
 			if ( !File.Exists ( filename ) )

@@ -5,6 +5,13 @@
 			"host" : "*",
 			"type": "site",
 			"root": "E:\\Web",
+			"subdir" : [
+				{
+					"host" : "test",
+					"type" : "site",
+					"root" : "E:\\Web2"
+				}
+			]
 		}
 	],
 	"mime" : "default",
