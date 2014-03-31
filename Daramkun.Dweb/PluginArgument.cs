@@ -9,6 +9,8 @@ namespace Daramkun.Dweb
 {
 	public class PluginArgument
 	{
+		public HttpServer Server { get; set; }
+
 		public HttpRequestMethod RequestMethod { get; set; }
 		public HttpUrl Url { get; set; }
 		public FieldCollection RequestFields { get; set; }

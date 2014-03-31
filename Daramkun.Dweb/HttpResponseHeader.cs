@@ -41,6 +41,7 @@ namespace Daramkun.Dweb
 			HttpVersion = new Version ( 1, 1 );
 			Status = status;
 			Fields = new Dictionary<string, object> ();
+			Fields.Add ( HttpHeaderField.Connection, "Keep-Alive" );
 			Fields.Add ( HttpHeaderField.ContentLength, 0 );
 			Fields.Add ( HttpHeaderField.Date, DateTime.UtcNow );
 			if ( server != null )

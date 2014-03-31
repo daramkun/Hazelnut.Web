@@ -52,6 +52,7 @@
     <Compile Include="HttpUrl.cs" />
     <Compile Include="IPlugin.cs" />
     <Compile Include="PluginArgument.cs" />
+    <Compile Include="Plugins\TextDeflatePlugin.cs" />
     <Compile Include="Plugins\OriginalPlugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="VirtualHost.cs" />

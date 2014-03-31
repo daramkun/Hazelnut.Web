@@ -8,6 +8,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Daramkun.Dweb;
+using Daramkun.Dweb.Plugins;
 using Daramkun.Dweb.Utility;
 using Daramkun.Dweb.VirtualHosts;
 
@@ -22,7 +23,7 @@ namespace Dweb.Test
 			HttpServer server = VirtualHostLoader.LoadServerConfiguration ( assembly.GetManifestResourceStream ( "Dweb.Test.80.json" ) );
 			HttpServer sslServer = VirtualHostLoader.LoadServerConfiguration ( assembly.GetManifestResourceStream ( "Dweb.Test.443.json" ) );
 			HttpServer proxyServer = VirtualHostLoader.LoadServerConfiguration ( assembly.GetManifestResourceStream ( "Dweb.Test.8080.json" ) );
-
+			server.Plugins.Add ( new TextDeflatePlugin () );
 			server.Start ();
 			sslServer.Start ();
 			proxyServer.Start ();

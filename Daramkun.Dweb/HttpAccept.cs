@@ -416,7 +416,8 @@ namespace Daramkun.Dweb
 				Post = header.PostData,
 				ContentType = fileContentType,
 				OriginalFilename = filename,
-				RequestFields = header.Fields
+				RequestFields = header.Fields,
+				Server = Server,
 			};
 			foreach ( IPlugin plugin in Server.Plugins )
 			{
@@ -475,13 +476,14 @@ namespace Daramkun.Dweb
 						while ( true )
 						{
 							string lengthHexa = _Utility.ReadToNextLine ( reader );
-							contentLength = Convert.ToInt32 ( "0x" + lengthHexa, 16 );
 							byte [] lengthBytes = Encoding.UTF8.GetBytes ( lengthHexa + "\r\n" );
 							networkStream.Write ( lengthBytes, 0, lengthBytes.Length );
+
+							contentLength = Convert.ToInt32 ( "0x" + lengthHexa, 16 );
 							if ( contentLength == 0 )
 							{
-								reader.ReadBytes ( 4 );
-								networkStream.Write ( Encoding.UTF8.GetBytes ( "\r\n\r\n" ), 0, 4 );
+								reader.ReadBytes ( 2 );
+								networkStream.Write ( Encoding.UTF8.GetBytes ( "\r\n" ), 0, 2 );
 								break;
 							}
 
