@@ -10,20 +10,20 @@ namespace Daramkun.Dweb
 		public static string ReadToSpace ( Stream reader )
 		{
 			StringBuilder builder = new StringBuilder ();
-			char ch;
-			while ( ( ch = ( char ) reader.ReadByte () ) != ' ' )
-				builder.Append ( ch );
+			byte [] buffer = new byte [ 1 ];
+			while ( reader.Read ( buffer, 0, 1 ) == 1 && ( char ) buffer [ 0 ] != ' ' )
+				builder.Append ( ( char ) buffer [ 0 ] );
 			return builder.ToString ();
 		}
 
 		public static string ReadToColon ( Stream reader )
 		{
 			StringBuilder builder = new StringBuilder ();
-			char ch;
-			while ( ( ch = ( char ) reader.ReadByte () ) != ':' )
+			byte [] buffer = new byte [ 1 ];
+			while ( reader.Read ( buffer, 0, 1 ) == 1 && ( char ) buffer [ 0 ] != ':' )
 			{
-				if ( ch == '\r' ) { reader.ReadByte (); return null; }
-				builder.Append ( ch );
+				if ( ( char ) buffer [ 0 ] == '\r' ) { reader.Read ( buffer, 0, 1 ); return null; }
+				builder.Append ( ( char ) buffer [ 0 ] );
 			}
 			return builder.ToString ();
 		}
@@ -31,15 +31,15 @@ namespace Daramkun.Dweb
 		public static string ReadToNextLine ( Stream reader )
 		{
 			StringBuilder builder = new StringBuilder ();
-			char ch;
+			byte [] buffer = new byte [ 1 ];
 			bool isStr = false;
-			while ( ( ch = ( char ) reader.ReadByte () ) == ' ' ) ;
-			if ( ch != ' ' ) builder.Append ( ch );
-			if ( ch == '"' ) isStr = true;
-			while ( ( ch = ( char ) reader.ReadByte () ) != '\r' || isStr )
+			while ( reader.Read ( buffer, 0, 1 ) == 1 && ( char ) buffer [ 0 ] == ' ' ) ;
+			if ( ( char ) buffer [ 0 ] != ' ' ) builder.Append ( ( char ) buffer [ 0 ] );
+			if ( ( char ) buffer [ 0 ] == '"' ) isStr = true;
+			while ( reader.Read ( buffer, 0, 1 ) == 1 && ( ( char ) buffer [ 0 ] != '\r' || isStr ) )
 			{
-				builder.Append ( ch );
-				if ( ch == '"' ) isStr = !isStr;
+				builder.Append ( ( char ) buffer [ 0 ] );
+				if ( ( char ) buffer [ 0 ] == '"' ) isStr = !isStr;
 			}
 			reader.ReadByte ();
 			return builder.ToString ();
@@ -47,8 +47,12 @@ namespace Daramkun.Dweb
 
 		public static void SkipToNextLine ( Stream reader )
 		{
-			while ( ( reader.ReadByte () ) != '\r' ) ;
-			reader.ReadByte ();
+			byte [] buffer = new byte [ 1 ];
+			do
+			{
+				reader.Read ( buffer, 0, 1 );
+			} while ( ( char ) buffer [ 0 ] != '\r' );
+			reader.Read ( buffer, 0, 1 );
 		}
 
 		public static string ReadName ( string disposition )
@@ -80,4 +84,3 @@ namespace Daramkun.Dweb
 		}
 	}
 }
-
