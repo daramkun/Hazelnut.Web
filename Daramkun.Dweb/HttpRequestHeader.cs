@@ -19,22 +19,20 @@ namespace Daramkun.Dweb
 		public HttpRequestHeader ( Stream stream )
 			: this ()
 		{
-			BinaryReader reader = new BinaryReader ( stream );
-			
 			// First line of Request Header
 			RequestMethod = ( HttpRequestMethod ) Enum.Parse ( typeof ( HttpRequestMethod ),
-				_Utility.ReadToSpace ( reader ).ToUpper () );
-			QueryString = new HttpUrl ( _Utility.ReadToSpace ( reader ) );
-			HttpVersion = new Version ( _Utility.ReadToNextLine ( reader ).Substring ( 5 ) );
+				_Utility.ReadToSpace ( stream ).ToUpper () );
+			QueryString = new HttpUrl ( _Utility.ReadToSpace ( stream ) );
+			HttpVersion = new Version ( _Utility.ReadToNextLine ( stream ).Substring ( 5 ) );
 			
 			// Read Header Fields
-			_Utility.SkipToNextLine ( reader );
+			_Utility.SkipToNextLine ( stream );
 			Fields = new FieldCollection ();
 
 			string key;
-			while ( ( key = _Utility.ReadToColon ( reader ) ) != null )
+			while ( ( key = _Utility.ReadToColon ( stream ) ) != null )
 				if ( !Fields.ContainsKey ( key ) )
-					Fields.Add ( key, _Utility.ReadToNextLine ( reader ).Trim () );
+					Fields.Add ( key, _Utility.ReadToNextLine ( stream ).Trim () );
 
 			PostData = new FieldCollection ();
 		}

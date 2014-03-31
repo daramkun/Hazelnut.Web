@@ -7,48 +7,48 @@ namespace Daramkun.Dweb
 {
 	static class _Utility
 	{
-		public static string ReadToSpace ( BinaryReader reader )
+		public static string ReadToSpace ( Stream reader )
 		{
 			StringBuilder builder = new StringBuilder ();
 			char ch;
-			while ( ( ch = reader.ReadChar () ) != ' ' )
+			while ( ( ch = ( char ) reader.ReadByte () ) != ' ' )
 				builder.Append ( ch );
 			return builder.ToString ();
 		}
 
-		public static string ReadToColon ( BinaryReader reader )
+		public static string ReadToColon ( Stream reader )
 		{
 			StringBuilder builder = new StringBuilder ();
 			char ch;
-			while ( ( ch = reader.ReadChar () ) != ':' )
+			while ( ( ch = ( char ) reader.ReadByte () ) != ':' )
 			{
-				if ( ch == '\r' ) { reader.ReadChar (); return null; }
+				if ( ch == '\r' ) { reader.ReadByte (); return null; }
 				builder.Append ( ch );
 			}
 			return builder.ToString ();
 		}
 
-		public static string ReadToNextLine ( BinaryReader reader )
+		public static string ReadToNextLine ( Stream reader )
 		{
 			StringBuilder builder = new StringBuilder ();
 			char ch;
 			bool isStr = false;
-			while ( ( ch = reader.ReadChar () ) == ' ' ) ;
+			while ( ( ch = ( char ) reader.ReadByte () ) == ' ' ) ;
 			if ( ch != ' ' ) builder.Append ( ch );
 			if ( ch == '"' ) isStr = true;
-			while ( ( ch = reader.ReadChar () ) != '\r' || isStr )
+			while ( ( ch = ( char ) reader.ReadByte () ) != '\r' || isStr )
 			{
 				builder.Append ( ch );
 				if ( ch == '"' ) isStr = !isStr;
 			}
-			reader.ReadChar ();
+			reader.ReadByte ();
 			return builder.ToString ();
 		}
 
-		public static void SkipToNextLine ( BinaryReader reader )
+		public static void SkipToNextLine ( Stream reader )
 		{
-			while ( ( reader.ReadChar () ) != '\r' ) ;
-			reader.ReadChar ();
+			while ( ( reader.ReadByte () ) != '\r' ) ;
+			reader.ReadByte ();
 		}
 
 		public static string ReadName ( string disposition )

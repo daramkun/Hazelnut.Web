@@ -127,7 +127,7 @@ namespace Daramkun.Dweb
 
 			do
 			{
-				if ( header.QueryString.Path.Count > 2 )
+				if ( header.QueryString.Path.Count >= 2 )
 				{
 					bool subDirectoried = false;
 
@@ -288,13 +288,13 @@ namespace Daramkun.Dweb
 					{
 						// Multipart POST data
 						ContentType contentType = new ContentType ( header.Fields [ HttpHeaderField.ContentType ] as string );
-						ReadMultipartPOSTData ( new BinaryReader ( networkStream ), contentLength, contentType.Boundary, header.PostData );
+						ReadMultipartPOSTData ( networkStream, contentLength, contentType.Boundary, header.PostData );
 					}
 				}
 			}
 		}
 
-		private void ReadMultipartPOSTData ( BinaryReader reader, int contentLength, string boundary, FieldCollection dictionary )
+		private void ReadMultipartPOSTData ( Stream reader, int contentLength, string boundary, FieldCollection dictionary )
 		{
 			bool partSeparatorMode = true, firstLooping = true;
 			Stream tempStream = null;
@@ -302,8 +302,10 @@ namespace Daramkun.Dweb
 			byte [] multipartData = new byte [ 4 + boundary.Length ];
 			Array.Copy ( new byte [] { ( byte ) '\r', ( byte ) '\n', ( byte ) '-', ( byte ) '-' }, multipartData, 4 );
 			Array.Copy ( Encoding.UTF8.GetBytes ( boundary ), 0, multipartData, 4, boundary.Length );
-			reader.ReadBytes ( 2 + boundary.Length );
+			for ( int i = 0; i < 2 + boundary.Length; ++i )
+				reader.ReadByte ();
 
+			byte [] separatorReaded = new byte [ 2 ];
 			while ( true )
 			{
 				if ( partSeparatorMode )
@@ -311,7 +313,8 @@ namespace Daramkun.Dweb
 					if ( !firstLooping )
 						AddToPOST ( dictionary, fields, tempStream as MemoryStream );
 
-					if ( Encoding.UTF8.GetString ( reader.ReadBytes ( 2 ) ) == "--" )
+					reader.Read ( separatorReaded, 0, 2 );
+					if ( Encoding.UTF8.GetString ( separatorReaded ) == "--" )
 					{
 						if ( tempStream != null ) tempStream.Dispose ();
 						return;
@@ -340,7 +343,7 @@ namespace Daramkun.Dweb
 					Queue<byte> queue = new Queue<byte> ();
 					while ( true )
 					{
-						b = reader.ReadByte ();
+						b = ( byte ) reader.ReadByte ();
 						if ( b == multipartData [ multipartHeaderIndex ] )
 						{
 							queue.Enqueue ( b );
@@ -472,17 +475,17 @@ namespace Daramkun.Dweb
 				{
 					if ( header.Fields.ContainsKey ( HttpHeaderField.TransferEncoding ) && header.Fields [ HttpHeaderField.TransferEncoding ] as string == "chunked" )
 					{
-						BinaryReader reader = new BinaryReader ( stream );
 						while ( true )
 						{
-							string lengthHexa = _Utility.ReadToNextLine ( reader );
+							string lengthHexa = _Utility.ReadToNextLine ( stream );
 							byte [] lengthBytes = Encoding.UTF8.GetBytes ( lengthHexa + "\r\n" );
 							networkStream.Write ( lengthBytes, 0, lengthBytes.Length );
 
 							contentLength = Convert.ToInt32 ( "0x" + lengthHexa, 16 );
 							if ( contentLength == 0 )
 							{
-								reader.ReadBytes ( 2 );
+								stream.ReadByte ();
+								stream.ReadByte ();
 								networkStream.Write ( Encoding.UTF8.GetBytes ( "\r\n" ), 0, 2 );
 								break;
 							}
@@ -494,7 +497,8 @@ namespace Daramkun.Dweb
 								networkStream.Write ( dataBuffer, 0, len );
 							}
 
-							reader.ReadBytes ( 2 );
+							stream.ReadByte ();
+							stream.ReadByte ();
 							networkStream.Write ( Encoding.UTF8.GetBytes ( "\r\n" ), 0, 2 );
 						}
 					}

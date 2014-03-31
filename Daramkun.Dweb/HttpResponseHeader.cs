@@ -51,20 +51,18 @@ namespace Daramkun.Dweb
 		public HttpResponseHeader ( Stream stream )
 			: this ()
 		{
-			BinaryReader reader = new BinaryReader ( stream );
-
-			HttpVersion = new Version ( _Utility.ReadToSpace ( reader ).Substring ( 5 ) );
-			Status = ( HttpStatusCode ) int.Parse ( _Utility.ReadToSpace ( reader ) );
-			_Utility.SkipToNextLine ( reader );
+			HttpVersion = new Version ( _Utility.ReadToSpace ( stream ).Substring ( 5 ) );
+			Status = ( HttpStatusCode ) int.Parse ( _Utility.ReadToSpace ( stream ) );
+			_Utility.SkipToNextLine ( stream );
 
 			Fields = new Dictionary<string, object> ();
 			string key;
-			while ( ( key = _Utility.ReadToColon ( reader ) ) != null )
+			while ( ( key = _Utility.ReadToColon ( stream ) ) != null )
 				if ( !Fields.ContainsKey ( key ) )
 				{
-					Fields.Add ( key, _Utility.ReadToNextLine ( reader ).Trim () );
+					Fields.Add ( key, _Utility.ReadToNextLine ( stream ).Trim () );
 				}
-				else _Utility.ReadToNextLine ( reader );
+				else _Utility.ReadToNextLine ( stream );
 		}
 
 		public override string ToString ()
