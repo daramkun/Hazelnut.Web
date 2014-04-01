@@ -21,7 +21,7 @@ namespace Daramkun.Dweb
 		{
 			// First line of Request Header
 			RequestMethod = ( HttpRequestMethod ) Enum.Parse ( typeof ( HttpRequestMethod ),
-				_Utility.ReadToSpace ( stream ).ToUpper () );
+				_Utility.ReadToSpace ( stream ) );
 			QueryString = new HttpUrl ( _Utility.ReadToSpace ( stream ) );
 			HttpVersion = new Version ( _Utility.ReadToNextLine ( stream ).Substring ( 5 ) );
 			

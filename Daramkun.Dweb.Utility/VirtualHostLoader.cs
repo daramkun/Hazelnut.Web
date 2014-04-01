@@ -29,6 +29,13 @@ namespace Daramkun.Dweb.Utility
 						foreach ( KeyValuePair<object, object> k in ( document [ "rewrite" ] as JsonContainer ).GetDictionaryEnumerable () )
 							( virtualHost as SiteVirtualHost ).RewriteRules.Add ( new Regex ( k.Key as string ), k.Value as string );
 					}
+
+					if ( document.Contains ( "indexes" ) )
+					{
+						( virtualHost as SiteVirtualHost ).IndexNames.Clear ();
+						foreach ( string k in ( document [ "indexes" ] as JsonContainer ).GetListEnumerable () )
+							( virtualHost as SiteVirtualHost ).IndexNames.Add ( k );	
+					}
 					break;
 
 				case "redirect":

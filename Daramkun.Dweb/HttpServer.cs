@@ -36,7 +36,6 @@ namespace Daramkun.Dweb
 
 		public TextWriter LogStream { get; set; }
 
-		public List<string> IndexNames { get; private set; }
 		public string TemporaryDirectory { get; set; }
 
 		[Conditional ( "DEBUG" )]
@@ -72,8 +71,7 @@ namespace Daramkun.Dweb
 			StatusPage = new Dictionary<HttpStatusCode, Stream> ();
 
 			TemporaryDirectory = Path.GetTempPath ();
-			IndexNames = new List<string> ( new string [] { "index.html", "index.htm", "index.dhtml", "index.xhtml" } );
-
+			
 			X509 = x509Cert;
 		}
 

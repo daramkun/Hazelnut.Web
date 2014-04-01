@@ -80,12 +80,11 @@ namespace Daramkun.Dweb
 					Socket.EndReceive ( ar );
 				}
 				catch { Server.SocketIsDead ( this ); return; }
-				HttpRequestHeader header;// = new HttpRequestHeader ();
 
 				try
 				{
 					#region Receive Request Header
-					header = new HttpRequestHeader ( networkStream );
+					HttpRequestHeader header = new HttpRequestHeader ( networkStream );
 					Server.WriteLog ( "V{0}, [{1}][{2}] {3}",
 						header.HttpVersion,
 						header.RequestMethod,
@@ -391,7 +390,7 @@ namespace Daramkun.Dweb
 			// Cannot found file, apply index filename
 			if ( !File.Exists ( filename ) )
 			{
-				foreach ( string indexName in Server.IndexNames )
+				foreach ( string indexName in virtualHost.IndexNames )
 				{
 					if ( File.Exists ( filename + "\\" + indexName ) )
 					{
@@ -421,6 +420,7 @@ namespace Daramkun.Dweb
 				OriginalFilename = filename,
 				RequestFields = header.Fields,
 				Server = Server,
+				VirtualHost = virtualHost
 			};
 			foreach ( IPlugin plugin in Server.Plugins )
 			{

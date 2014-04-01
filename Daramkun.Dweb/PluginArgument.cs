@@ -18,6 +18,7 @@ namespace Daramkun.Dweb
 		public FieldCollection Post { get; set; }
 		public ContentType ContentType { get; set; }
 
+		public VirtualHost VirtualHost { get; set; }
 		public string OriginalFilename { get; set; }
 	}
 }

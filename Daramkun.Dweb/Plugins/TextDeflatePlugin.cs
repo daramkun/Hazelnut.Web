@@ -16,7 +16,7 @@ namespace Daramkun.Dweb.Plugins
 				stream = new MemoryStream ();
 				using ( DeflateStream ds = new DeflateStream ( stream, CompressionMode.Compress, true ) )
 				{
-					using ( FileStream fs = new FileStream ( args.OriginalFilename, FileMode.Open ) )
+					using ( FileStream fs = new FileStream ( args.OriginalFilename, FileMode.Open, FileAccess.Read, FileShare.Read ) )
 					{
 						byte [] buffer = new byte [ 4096 ];
 						while ( fs.Position != fs.Length )
