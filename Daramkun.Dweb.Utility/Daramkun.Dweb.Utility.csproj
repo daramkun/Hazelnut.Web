@@ -31,8 +31,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Daramkun.Blockar">
-      <HintPath>..\packages\Daramkun.Blockar.2.0.1.0\lib\portable-net4+sl5+wp8+win8\Daramkun.Blockar.dll</HintPath>
+    <Reference Include="Daramkun.Blockar, Version=2.0.2.34281, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\Daramkun.Blockar.2.0.2.0\lib\portable-net4+sl5+wp8+win8\Daramkun.Blockar.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -44,13 +45,13 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\Daramkun.Dweb\Daramkun.Dweb.csproj">
       <Project>{cad94f5c-609d-4d5d-809e-6a7533581ef7}</Project>
       <Name>Daramkun.Dweb</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
