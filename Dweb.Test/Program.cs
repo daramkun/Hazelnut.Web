@@ -21,18 +21,18 @@ namespace Dweb.Test
 			Assembly assembly = Assembly.GetEntryAssembly ();
 
 			HttpServer server = VirtualHostLoader.LoadServerConfiguration ( assembly.GetManifestResourceStream ( "Dweb.Test.80.json" ) );
-			HttpServer sslServer = VirtualHostLoader.LoadServerConfiguration ( assembly.GetManifestResourceStream ( "Dweb.Test.443.json" ) );
+			//HttpServer sslServer = VirtualHostLoader.LoadServerConfiguration ( assembly.GetManifestResourceStream ( "Dweb.Test.443.json" ) );
 			HttpServer proxyServer = VirtualHostLoader.LoadServerConfiguration ( assembly.GetManifestResourceStream ( "Dweb.Test.8080.json" ) );
 			server.Plugins.Add ( new TextDeflatePlugin () );
 			server.Start ();
-			sslServer.Start ();
+			//sslServer.Start ();
 			proxyServer.Start ();
 
 			while ( server.IsServerAlive )
 			{
 				Console.ReadLine ();
 				Console.WriteLine ( server.Clients.Count );
-				Console.WriteLine ( sslServer.Clients.Count );
+				//Console.WriteLine ( sslServer.Clients.Count );
 				Console.WriteLine ( proxyServer.Clients.Count );
 			}
 		}

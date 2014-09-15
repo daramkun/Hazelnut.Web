@@ -38,13 +38,13 @@ namespace Daramkun.Dweb
 
 		public string TemporaryDirectory { get; set; }
 
-		[Conditional ( "DEBUG" )]
 		public void WriteLog ( string text, params object [] args )
 		{
 			if ( LogStream != null )
 			{
 				LogStream.Write ( "[{0:yyyy-MM-dd hh:mm:ss}][{1}] ", DateTime.Now, Thread.CurrentThread.ManagedThreadId );
 				LogStream.WriteLine ( text, args );
+				LogStream.Flush ();
 			}
 		}
 
