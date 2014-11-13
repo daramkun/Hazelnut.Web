@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Mime;
+using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -53,6 +54,9 @@ namespace Daramkun.Dweb.Utility
 					( virtualHost as SiteVirtualHost ).SubDirectory.Add ( ( k.Value as JsonContainer ) [ "host" ] as string,
 						CreateVirtualHost ( k.Value as JsonContainer ) );
 			}
+
+			if ( document.Contains ( "administrator" ) )
+				virtualHost.Administrator = document [ "administrator" ] as string;
 
 			return virtualHost;
 		}
@@ -115,7 +119,36 @@ namespace Daramkun.Dweb.Utility
 				else throw new ArgumentException ();
 			}
 
+			if ( document.Contains ( "plugins" ) )
+			{
+				foreach ( object k in ( document [ "plugins" ] as JsonContainer ).GetListEnumerable () )
+				{
+					Assembly asm = Assembly.LoadFrom ( k as string );
+					foreach ( Type t in asm.GetTypes () )
+					{
+						if ( IsSubtypeOf ( t, typeof ( IPlugin ) ) )
+						{
+							server.Plugins.Add ( Activator.CreateInstance ( t ) as IPlugin );
+							break;
+						}
+					}
+				}
+			}
+
 			return server;
+		}
+		
+		static bool IsSubtypeOf ( Type majorType, Type minorType )
+		{
+			if ( majorType == minorType || majorType.IsSubclassOf ( minorType ) )
+				return true;
+			else if ( minorType.IsInterface )
+			{
+				foreach ( Type type in majorType.GetInterfaces () )
+					if ( type == minorType )
+						return true;
+			}
+			return false;
 		}
 	}
 }

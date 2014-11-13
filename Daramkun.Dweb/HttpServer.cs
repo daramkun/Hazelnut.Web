@@ -23,6 +23,7 @@ namespace Daramkun.Dweb
 		OriginalPlugin originalPlugin;
 
 		public string ServerName { get; set; }
+		public string ServerAdministrator { get; set; }
 		public IPEndPoint EndPoint { get; private set; }
 		public X509Certificate2 X509 { get; private set; }
 
@@ -135,7 +136,7 @@ namespace Daramkun.Dweb
 			Mimes.Add ( ".js", new ContentType ( "text/javascript" ) );
 			
 			Mimes.Add ( ".txt", new ContentType ( "text/plain" ) );
-			Mimes.Add ( ".json", new ContentType ( "application/json" ) );
+			Mimes.Add ( ".json", new ContentType ( "text/json" ) );
 			Mimes.Add ( ".yaml", new ContentType ( "text/yaml" ) );
 			Mimes.Add ( ".xml", new ContentType ( "text/xml" ) );
 			Mimes.Add ( ".dtd", new ContentType ( "application/xml-dtd" ) );
@@ -167,8 +168,8 @@ namespace Daramkun.Dweb
 			Mimes.Add ( ".ai", new ContentType ( "application/postscript" ) );
 			Mimes.Add ( ".svg", new ContentType ( "image/svg+xml" ) );
 
-			Mimes.Add ( ".zip", new ContentType ( "application/x-zip-comressed" ) );
-			Mimes.Add ( ".7z", new ContentType ( "application/x-7z-comressed" ) );
+			Mimes.Add ( ".zip", new ContentType ( "application/x-zip-compressed" ) );
+			Mimes.Add ( ".7z", new ContentType ( "application/x-7z-compressed" ) );
 			Mimes.Add ( ".rar", new ContentType ( "application/x-rar-compressed" ) );
 			Mimes.Add ( ".lzh", new ContentType ( "application/x-lzh-archive" ) );
 			Mimes.Add ( ".lzma", new ContentType ( "application/x-lzma-archive" ) );

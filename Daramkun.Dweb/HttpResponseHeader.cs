@@ -45,7 +45,11 @@ namespace Daramkun.Dweb
 			Fields.Add ( HttpHeaderField.ContentLength, 0 );
 			Fields.Add ( HttpHeaderField.Date, DateTime.UtcNow );
 			if ( server != null )
+			{
 				Fields.Add ( HttpHeaderField.Server, server.ServerName );
+				if ( server.ServerAdministrator != null )
+					Fields.Add ( "Administrator", server.ServerAdministrator );
+			}
 		}
 
 		public HttpResponseHeader ( Stream stream )

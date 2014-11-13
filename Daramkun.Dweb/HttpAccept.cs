@@ -424,12 +424,33 @@ namespace Daramkun.Dweb
 			};
 			foreach ( IPlugin plugin in Server.Plugins )
 			{
-				if ( isPluginProceed = plugin.Run ( args, out responseHeader, out responseStream ) )
-					break;
+				try
+				{
+					if ( isPluginProceed = plugin.Run ( args, out responseHeader, out responseStream ) )
+						break;
+				}
+				catch
+				{
+					responseHeader = new HttpResponseHeader ( HttpStatusCode.InternalServerError );
+					responseStream = null;
+					isPluginProceed = true;
+				}
 			}
 			// If Cannot found Plugin, Processing Original plugin
 			if ( !isPluginProceed )
 				Server.OriginalPlugin.Run ( args, out responseHeader, out responseStream );
+
+			switch ( responseHeader.Status )
+			{
+				case HttpStatusCode.InternalServerError:
+					Server.WriteLog ( "[ERROR] 500 Internal Error from {0} where {1}",
+						this.Socket.RemoteEndPoint, args.Url );
+					break;
+				case HttpStatusCode.NotFound:
+					Server.WriteLog ( "[ERROR] 404 Not Found from {0} where {1}",
+						this.Socket.RemoteEndPoint, args.Url );
+					break;
+			}
 
 			// Send to client
 			SendData ( responseHeader, responseStream );
