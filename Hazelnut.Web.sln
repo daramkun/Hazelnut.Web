@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hazelnut.Web", "Hazelnut.Web\Hazelnut.Web.csproj", "{AC93DF7D-F853-41B2-A029-C0CC43CF9CAE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sample", "Sample\Sample.csproj", "{7DBBFACA-61AE-4082-8ED1-4727E0FAC109}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{AC93DF7D-F853-41B2-A029-C0CC43CF9CAE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AC93DF7D-F853-41B2-A029-C0CC43CF9CAE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AC93DF7D-F853-41B2-A029-C0CC43CF9CAE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AC93DF7D-F853-41B2-A029-C0CC43CF9CAE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7DBBFACA-61AE-4082-8ED1-4727E0FAC109}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7DBBFACA-61AE-4082-8ED1-4727E0FAC109}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7DBBFACA-61AE-4082-8ED1-4727E0FAC109}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7DBBFACA-61AE-4082-8ED1-4727E0FAC109}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
