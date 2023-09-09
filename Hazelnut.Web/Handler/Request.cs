@@ -1,8 +1,6 @@
 ﻿using System.Net;
 using System.Net.Mime;
-using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.Encodings.Web;
 using System.Text.RegularExpressions;
 using System.Web;
 using Hazelnut.Web.IO;
@@ -110,13 +108,12 @@ public class Request
     private static async ValueTask ParseBodyAsync(HttpConnection connection, HeaderCollection headers,
         IDictionary<string, string> body, bool decode, CancellationToken cancellationToken)
     {
-        var encoding = headers.ContentEncoding ?? Encoding.UTF8;
         var contentLength = headers.ContentLength;
 
         var buffer = new byte[contentLength];
         await connection.ReadToLength(buffer, 0, buffer.Length, cancellationToken);
 
-        var postData = encoding.GetString(buffer);
+        var postData = Encoding.UTF8.GetString(buffer);
         ParseParameters(postData, (Dictionary<string, string>)body, decode);
     }
 

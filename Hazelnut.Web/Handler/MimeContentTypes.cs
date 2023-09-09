@@ -29,6 +29,7 @@ public class MimeContentTypes
             _mimes.Add(".zip", "application/zip");
             _mimes.Add(".br", "application/brotli");
             _mimes.Add(".gz", "application/gzip");
+            _mimes.Add(".wasm", "application/wasm");
             
             _mimes.Add(".bmp", "image/bmp");
             _mimes.Add(".png", "image/png");

@@ -75,15 +75,6 @@ public class HeaderCollection : IEnumerable<KeyValuePair<string, string>>
         };
     }
 
-    public Encoding? ContentEncoding
-    {
-        get =>
-            _collection.TryGetValue("Content-Encoding", out var contentEncoding)
-                ? Encoding.GetEncoding(contentEncoding)
-                : Encoding.UTF8;
-        set => this["Content-Encoding"] = value?.EncodingName;
-    }
-
     public long ContentLength
     {
         get =>

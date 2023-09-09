@@ -25,7 +25,7 @@ public class FileRequestHandler : IRequestHandler
 
     public async ValueTask OnRequestAsync(Request request, Response response)
     {
-        var queryString = (request.QueryString.Length > 0 && request.QueryString[0] == '/')
+        var queryString = request.QueryString.Length > 0 && request.QueryString[0] == '/'
             ? request.QueryString[1..]
             : request.QueryString;
         
