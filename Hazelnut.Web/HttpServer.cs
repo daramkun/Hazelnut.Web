@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Net.Sockets;
 using Hazelnut.Web.Configurations;
+using Hazelnut.Web.Diagnostics;
 
 namespace Hazelnut.Web;
 
@@ -20,6 +21,8 @@ public class HttpServer : IDisposable, IAsyncDisposable
     public IReadOnlyDictionary<string, HostConfiguration> HostConfigurations => _hostConfigs;
     
     public ulong MaximumPostContentLength { get; }
+
+    public IWebLogger? Logger { get; set; } = new DefaultWebLogger();
 
     public HttpServer(ServerConfiguration[] serverConfigs, HostConfiguration[] hostConfigs, ulong maximumPostContentLength = ulong.MaxValue)
     {
@@ -85,13 +88,15 @@ public class HttpServer : IDisposable, IAsyncDisposable
         foreach (var listenSocket in _listenSockets)
             listenSocket.Listen(backlog);
         
+        Logger?.Write(LogLevel.Info, "Server is ready.");
         OnReady();
 
         Task.WaitAll(
             _listenSockets.Select(listenSocket => AcceptConnection(listenSocket, _cancellationToken.Token)).ToArray(),
             _cancellationToken.Token
         );
-        
+
+        Logger?.Write(LogLevel.Info, "Server is shutting down.");
         OnShuttingDown();
     }
 
