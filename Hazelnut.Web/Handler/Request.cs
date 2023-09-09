@@ -182,7 +182,7 @@ public class Request
     }
     
     public HttpMethod Method { get; private set; } = HttpMethod.Get;
-    public string QueryString { get; private set; } = string.Empty;
+    public string QueryString { get; internal set; } = string.Empty;
     public Version HttpVersion { get; private set; } = new(1, 0);
     public HeaderCollection Headers { get; } = new();
     

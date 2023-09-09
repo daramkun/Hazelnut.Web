@@ -76,6 +76,9 @@ internal sealed class HttpActor : IDisposable
             var requestHandler = hostConfig.FindRequestHandler(request.QueryString);
             if (requestHandler == null)
                 throw new NullReferenceException();
+
+            if (requestHandler.Location != "/")
+                request.QueryString = request.QueryString[requestHandler.Location.Length..];
             
             if (requestHandler.AuthorizeMethod == null || requestHandler.AuthorizeMethod.IsAuthorized(request, response))
             {
