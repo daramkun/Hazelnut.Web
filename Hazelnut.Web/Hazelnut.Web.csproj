@@ -1,7 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>net7.0</TargetFramework>
-        <Nullable>enable</Nullable>
+        <LangVersion>11</LangVersion>
         <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <Title>Hazelnut.Web</Title>
+        <Authors>Jin Jae-yeon</Authors>
+        <Description>.NET Logging Framework</Description>
+        <Copyright>Copyright ⓒ 2023 Jin Jae-yeon</Copyright>
+        <PackageProjectUrl>https://github.com/daramkun/Hazelnut.Web</PackageProjectUrl>
+        <PackageLicenseUrl>https://github.com/daramkun/Hazelnut.Web/blob/main/LICENSE.md</PackageLicenseUrl>
+        <RepositoryUrl>https://github.com/daramkun/Hazelnut.Web.git</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
     </PropertyGroup>
 </Project>
