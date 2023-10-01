@@ -23,8 +23,21 @@ public class ErrorPageProvider
     
     public virtual Stream Provide(HttpStatusCode statusCode)
     {
-        var page = string.Format(_pageTemplate, (int)statusCode, statusCode.ToString());
+        var page = string.Format(_pageTemplate, (int)statusCode, StatusCodeToString(statusCode));
         var pageBytes = Encoding.UTF8.GetBytes(page);
         return new MemoryStream(pageBytes);
+    }
+
+    internal static string StatusCodeToString(HttpStatusCode statusCode)
+    {
+        var builder = new StringBuilder(statusCode.ToString());
+
+        for (var i = 0; i < builder.Length; ++i)
+        {
+            if (char.IsUpper(builder[i]) && i != 0)
+                builder.Insert(i++, ' ');
+        }
+        
+        return builder.ToString();
     }
 }

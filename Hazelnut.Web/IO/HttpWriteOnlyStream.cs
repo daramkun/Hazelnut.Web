@@ -3,6 +3,7 @@ using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
 using Hazelnut.Web.Handler;
+using Hazelnut.Web.Providers;
 
 namespace Hazelnut.Web.IO;
 
@@ -76,7 +77,7 @@ internal class HttpWriteOnlyStream : Stream
     private byte[] GenerateHttpHeader(long contentLength)
     {
         var builder = new StringBuilder();
-        builder.Append($"HTTP/{_response.HttpVersion.Major}.{_response.HttpVersion.Minor} {(int)_response.StatusCode} {_response.StatusCode.ToString()}\r\n");
+        builder.Append($"HTTP/{_response.HttpVersion.Major}.{_response.HttpVersion.Minor} {(int)_response.StatusCode} {ErrorPageProvider.StatusCodeToString(_response.StatusCode)}\r\n");
 
         _response.Headers.ContentLength = contentLength;
         if (!_response.Headers.IsContainsKey("Date"))
